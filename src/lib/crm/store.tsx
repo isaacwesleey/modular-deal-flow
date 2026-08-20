@@ -43,6 +43,13 @@ const LEGACY_KEY = "crm-remix-state-v1";
 /** Tope de eventos guardados por organización (evita reventar la cuota de localStorage). */
 export const MAX_EVENTS = 500;
 
+/**
+ * Versión actual del esquema de datos del tenant.
+ * Cada migración puntual se aplica UNA sola vez: si el estado guardado ya
+ * tiene esta versión, no se vuelve a tocar la configuración del usuario.
+ */
+export const SCHEMA_VERSION = 2;
+
 /** Asegura que existan los roles de campo en estados guardados antes de esta versión. */
 function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
   let list = fields;
@@ -68,9 +75,15 @@ function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
 }
 
 /**
- * Migración puntual: en algunas organizaciones el rol `company` cayó sobre un
- * campo que no era la empresa (p. ej. "Ciudad"). Se libera ese campo y se crea
- * uno de empresa propio para que la cabecera de la ficha muestre lo correcto.
+ * Migración puntual (v1 → v2): en algunas organizaciones el rol `company` cayó
+ * sobre un campo que no era la empresa (p. ej. "Ciudad"). Se libera ese campo y
+ * se crea uno de empresa propio para que la cabecera de la ficha muestre lo
+ * correcto.
+ *
+ * ⚠️ Solo se ejecuta una vez, al subir de versión de esquema. A partir de ahí
+ * el rol `company` es decisión del usuario: puede llamar a ese campo "Cuenta",
+ * "Cliente" o "Razón social" y nadie se lo va a cambiar en el siguiente
+ * arranque.
  */
 function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
   const wrong = fields.find(
@@ -98,7 +111,9 @@ function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
 
 function migrateTenantState(s: CrmState): CrmState {
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
-  const contactFields = fixCompanyRole(ensureRoles(s.contactFields ?? [], false));
+  const version = s.schemaVersion ?? 1;
+  const withRoles = ensureRoles(s.contactFields ?? [], false);
+  const contactFields = version < 2 ? fixCompanyRole(withRoles) : withRoles;
   const contacts = (s.contacts ?? []).filter(
     (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
   );
@@ -125,6 +140,7 @@ function migrateTenantState(s: CrmState): CrmState {
   return {
     ...defaultState(),
     ...s,
+    schemaVersion: SCHEMA_VERSION,
     contactFields,
     dealFields: ensureRoles(s.dealFields ?? [], true),
     events: (s.events ?? []).slice(0, MAX_EVENTS),
