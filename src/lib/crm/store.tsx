@@ -6,9 +6,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { defaultState, demoRootState, emptyTenantState, uid } from "./defaults";
+import { defaultState, emptyTenantState, seedRootState, uid } from "./defaults";
 import { brandForeground } from "./contrast";
+import { TRASH_DAYS } from "./roles";
 import type {
+  ActivityEvent,
   CrmState,
   FieldDef,
   Membership,
@@ -46,11 +48,18 @@ function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
 }
 
 function migrateTenantState(s: CrmState): CrmState {
+  const cutoff = Date.now() - TRASH_DAYS * 86400000;
   return {
     ...defaultState(),
     ...s,
     contactFields: ensureRoles(s.contactFields ?? [], false),
     dealFields: ensureRoles(s.dealFields ?? [], true),
+    events: s.events ?? [],
+    savedViews: s.savedViews ?? [],
+    // Purga automática de la papelera pasado el plazo de retención.
+    contacts: (s.contacts ?? []).filter(
+      (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
+    ),
   };
 }
 
@@ -65,13 +74,13 @@ function loadRoot(): RootState {
         const state = migrateTenantState(t.state);
         tenants[id] = { ...t, name: state.branding.companyName.trim() || t.name, state };
       }
-      return { ...demoRootState(), ...parsed, tenants };
+      return { ...seedRootState(), ...parsed, tenants };
     }
   } catch {
     /* ignore */
   }
 
-  const root = demoRootState();
+  const root = seedRootState();
   try {
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
@@ -87,7 +96,7 @@ function loadRoot(): RootState {
         id: uid(),
         name: "Propietario",
         email: "propietario@miempresa.com",
-        password: "demo1234",
+        password: DEFAULT_PASSWORD,
         memberships: [{ tenantId: id, role: "admin" }],
       };
       root.tenants = { [id]: tenant, ...root.tenants };
@@ -110,6 +119,12 @@ interface Ctx {
 
   root: RootState;
   setRoot: (updater: (r: RootState) => RootState) => void;
+  /** Usuarios que pertenecen a la organización activa. */
+  tenantUsers: User[];
+  /** Registra una o varias entradas en el historial de la organización. */
+  logEvents: (
+    entries: Array<Omit<ActivityEvent, "id" | "at" | "actorId" | "actorName"> & { at?: string }>,
+  ) => void;
 
   user: User | null;
   tenant: Tenant | null;
