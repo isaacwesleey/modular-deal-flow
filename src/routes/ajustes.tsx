@@ -3,6 +3,7 @@ import { useState } from "react";
 import { GripVertical, Plus, Trash2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { BRAND_COLORS, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
+import { isProtectedField } from "@/lib/crm/roles";
 import { PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +11,24 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CrmState, FieldDef, FieldType, ModuleKey } from "@/lib/crm/types";
+import type { CrmState, FieldDef, FieldRole, FieldType, ModuleKey, Stage } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/ajustes")({
   head: () => ({
@@ -42,9 +54,26 @@ function AjustesPage() {
         title="Ajustes"
         subtitle="Todo se guarda en tu navegador (localStorage). Sin backend."
         action={
-          <Button variant="outline" onClick={reset}>
-            <RotateCcw className="mr-1 h-4 w-4" /> Restaurar demo
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">
+                <RotateCcw className="mr-1 h-4 w-4" /> Restaurar demo
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Restaurar los datos de demo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se borrarán todos tus contactos, oportunidades, tareas, notas, campos
+                  personalizados y ajustes de marca. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={reset}>Sí, restaurar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         }
       />
 
