@@ -15,6 +15,7 @@ import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as NotasRouteImport } from './routes/notas'
+import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RestablecerRouteImport } from './routes/restablecer'
@@ -51,6 +52,11 @@ const InvitacionRoute = InvitacionRouteImport.update({
 const NotasRoute = NotasRouteImport.update({
   id: '/notas',
   path: '/notas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PipelineRoute = PipelineRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
+  '/perfil': typeof PerfilRoute
   '/pipeline': typeof PipelineRoute
   '/recuperar': typeof RecuperarRoute
   '/restablecer': typeof RestablecerRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
+  '/perfil': typeof PerfilRoute
   '/pipeline': typeof PipelineRoute
   '/recuperar': typeof RecuperarRoute
   '/restablecer': typeof RestablecerRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
+  '/perfil': typeof PerfilRoute
   '/pipeline': typeof PipelineRoute
   '/recuperar': typeof RecuperarRoute
   '/restablecer': typeof RestablecerRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/invitacion'
     | '/notas'
+    | '/perfil'
     | '/pipeline'
     | '/recuperar'
     | '/restablecer'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/invitacion'
     | '/notas'
+    | '/perfil'
     | '/pipeline'
     | '/recuperar'
     | '/restablecer'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/invitacion'
     | '/notas'
+    | '/perfil'
     | '/pipeline'
     | '/recuperar'
     | '/restablecer'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   InvitacionRoute: typeof InvitacionRoute
   NotasRoute: typeof NotasRoute
+  PerfilRoute: typeof PerfilRoute
   PipelineRoute: typeof PipelineRoute
   RecuperarRoute: typeof RecuperarRoute
   RestablecerRoute: typeof RestablecerRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/notas'
       fullPath: '/notas'
       preLoaderRoute: typeof NotasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pipeline': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   InvitacionRoute: InvitacionRoute,
   NotasRoute: NotasRoute,
+  PerfilRoute: PerfilRoute,
   PipelineRoute: PipelineRoute,
   RecuperarRoute: RecuperarRoute,
   RestablecerRoute: RestablecerRoute,
