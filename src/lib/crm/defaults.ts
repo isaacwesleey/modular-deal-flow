@@ -189,7 +189,7 @@ export function defaultState(): CrmState {
     savedViews: [],
   };
 }
-/* ---------------- Multi tenant: usuarios, organizaciones y demo ---------------- */
+/* ---------------- Multi tenant: usuarios y organizaciones precargadas ---------------- */
 
 export function emptyTenantState(companyName: string, brandIndex = 0): CrmState {
   const s = defaultState();
@@ -200,6 +200,8 @@ export function emptyTenantState(companyName: string, brandIndex = 0): CrmState 
     deals: [],
     tasks: [],
     notes: [],
+    events: [],
+    savedViews: [],
   };
 }
 
@@ -207,7 +209,7 @@ export function makeTenant(name: string, state: CrmState): Tenant {
   return { id: uid(), name, createdAt: new Date().toISOString(), state };
 }
 
-/** Segunda organización de demo, con datos, campos, marca y módulos distintos. */
+/** Segunda organización precargada, con datos, campos, marca y módulos distintos. */
 function studioNorteState(): CrmState {
   const base = defaultState();
   return {
@@ -225,6 +227,8 @@ function studioNorteState(): CrmState {
       { id: "email", label: "Email", type: "email", showInQuickView: true },
       { id: "ciudad", label: "Ciudad", type: "text", showInQuickView: true },
       { id: "sector", label: "Sector", type: "select", options: ["Retail", "Hostelería", "Oficinas"], showInQuickView: true },
+      { id: "fase", label: "Fase", type: "select", options: ["Solicitud", "Visitado", "Presupuestado", "Cliente"], showInQuickView: true, role: "status" },
+      { id: "responsable", label: "Responsable", type: "user", showInQuickView: true, role: "owner" },
     ],
     dealFields: [
       { id: "titulo", label: "Proyecto", type: "text", core: true, showInQuickView: true, role: "title" },
@@ -232,9 +236,9 @@ function studioNorteState(): CrmState {
       { id: "m2", label: "Metros cuadrados", type: "number", showInQuickView: true },
     ],
     contacts: [
-      { id: "sc1", createdAt: daysAgo(2), values: { nombre: "Bar Aurora", email: "hola@baraurora.es", ciudad: "Bilbao", sector: "Hostelería" } },
-      { id: "sc2", createdAt: daysAgo(6), values: { nombre: "Óptica Zubi", email: "info@opticazubi.com", ciudad: "Donostia", sector: "Retail" } },
-      { id: "sc3", createdAt: daysAgo(11), values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", ciudad: "Bilbao", sector: "Oficinas" } },
+      { id: "sc1", createdAt: daysAgo(2), attribution: { ...ATTRIBUTIONS[0]!, firstSeenAt: daysAgo(3) }, values: { nombre: "Bar Aurora", email: "hola@baraurora.es", ciudad: "Bilbao", sector: "Hostelería", fase: "Solicitud", responsable: "u-norte" } },
+      { id: "sc2", createdAt: daysAgo(6), attribution: { ...ATTRIBUTIONS[2]!, firstSeenAt: daysAgo(7) }, values: { nombre: "Óptica Zubi", email: "info@opticazubi.com", ciudad: "Donostia", sector: "Retail", fase: "Presupuestado", responsable: "u-norte" } },
+      { id: "sc3", createdAt: daysAgo(11), attribution: { ...ATTRIBUTIONS[3]!, firstSeenAt: daysAgo(12) }, values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", ciudad: "Bilbao", sector: "Oficinas", fase: "Cliente", responsable: "u-admin" } },
     ],
     deals: [
       { id: "sd1", createdAt: daysAgo(2), stageId: "n2", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
@@ -251,10 +255,16 @@ function studioNorteState(): CrmState {
       { id: "sb2", type: "pipeline-resumen" },
       { id: "sb3", type: "tareas-hoy" },
     ],
+    events: [
+      { id: "sev1", at: daysAgo(2), type: "contact.created", actorId: "u-norte", actorName: "Aitor Norte", contactId: "sc1" },
+      { id: "sev2", at: daysAgo(6), type: "contact.created", actorId: "u-norte", actorName: "Aitor Norte", contactId: "sc2" },
+      { id: "sev3", at: daysAgo(11), type: "contact.created", actorId: "u-admin", actorName: "Elena Admin", contactId: "sc3" },
+    ],
+    savedViews: [],
   };
 }
 
-export function demoRootState(): RootState {
+export function seedRootState(): RootState {
   const t1: Tenant = { id: "acme", name: "Mi Empresa", createdAt: daysAgo(40), state: defaultState() };
   const t2: Tenant = { id: "norte", name: "Studio Norte", createdAt: daysAgo(15), state: studioNorteState() };
 
