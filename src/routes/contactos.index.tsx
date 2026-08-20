@@ -159,9 +159,18 @@ function ContactosPage() {
     }
   };
 
+  /** Texto exportable: sin guiones de relleno y con nombres legibles de usuario. */
+  const csvCell = (fieldId: string, type: string, raw: unknown): string => {
+    if (raw === undefined || raw === null || raw === "") return "";
+    if (type === "user") return contactsApi.userName(raw);
+    const f = fields.find((x) => x.id === fieldId)!;
+    const text = formatValue(f, raw);
+    return text === "—" ? "" : text;
+  };
+
   const exportCsv = () => {
     const header = fields.map((f) => f.label);
-    const body = filtered.map((c) => fields.map((f) => formatValue(f, c.values[f.id])));
+    const body = filtered.map((c) => fields.map((f) => csvCell(f.id, f.type, c.values[f.id])));
     downloadCsv("contactos.csv", toCsv([header, ...body]));
     toast.success(`${filtered.length} contactos exportados`);
   };
@@ -195,7 +204,9 @@ function ContactosPage() {
         const raw = (r[m.index] ?? "").trim();
         if (!raw) continue;
         values[m.field.id] =
-          m.field.type === "number" || m.field.type === "currency"
+          m.field.type === "user"
+            ? (tenantUsers.find((u) => u.name.toLowerCase() === raw.toLowerCase())?.id ?? "")
+            : m.field.type === "number" || m.field.type === "currency"
             ? Number(raw.replace(/[^\d.,-]/g, "").replace(",", ".")) || 0
             : m.field.type === "multiselect"
               ? raw.split(/[,;]/).map((x) => x.trim()).filter(Boolean)
