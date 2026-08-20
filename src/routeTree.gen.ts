@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as ContactosRouteImport } from './routes/contactos'
 import { Route as NotasRouteImport } from './routes/notas'
 import { Route as PipelineRouteImport } from './routes/pipeline'
@@ -18,6 +19,11 @@ import { Route as TareasRouteImport } from './routes/tareas'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AjustesRoute = AjustesRouteImport.update({
+  id: '/ajustes',
+  path: '/ajustes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactosRoute = ContactosRouteImport.update({
@@ -43,6 +49,7 @@ const TareasRoute = TareasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ajustes': typeof AjustesRoute
   '/contactos': typeof ContactosRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ajustes': typeof AjustesRoute
   '/contactos': typeof ContactosRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ajustes': typeof AjustesRoute
   '/contactos': typeof ContactosRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
@@ -65,14 +74,23 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
+  fullPaths:
+    '/' | '/ajustes' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
-  id: '__root__' | '/' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
+  to: '/' | '/ajustes' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
+  id:
+    | '__root__'
+    | '/'
+    | '/ajustes'
+    | '/contactos'
+    | '/notas'
+    | '/pipeline'
+    | '/tareas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AjustesRoute: typeof AjustesRoute
   ContactosRoute: typeof ContactosRoute
   NotasRoute: typeof NotasRoute
   PipelineRoute: typeof PipelineRoute
@@ -86,6 +104,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ajustes': {
+      id: '/ajustes'
+      path: '/ajustes'
+      fullPath: '/ajustes'
+      preLoaderRoute: typeof AjustesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contactos': {
@@ -121,6 +146,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AjustesRoute: AjustesRoute,
   ContactosRoute: ContactosRoute,
   NotasRoute: NotasRoute,
   PipelineRoute: PipelineRoute,
