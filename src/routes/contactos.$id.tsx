@@ -16,7 +16,16 @@ import { useContacts } from "@/lib/crm/useContacts";
 import { uid } from "@/lib/crm/defaults";
 import { ACTIVITY_LABELS } from "@/lib/crm/activity";
 import { ATTRIBUTION_LABELS } from "@/lib/crm/attribution";
-import { dealAmount, ownerField, recordTitle, statusField } from "@/lib/crm/roles";
+import {
+  companyField,
+  contactDeals,
+  dealAmount,
+  emailField,
+  ownerField,
+  phoneField,
+  recordTitle,
+  statusField,
+} from "@/lib/crm/roles";
 import { FieldInput, UserFieldInput } from "@/components/crm/fields";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,17 +79,8 @@ function LeadPage() {
     [state.events, id],
   );
   const title = contact ? recordTitle(fields, contact.values) : "";
-  const deals = useMemo(() => {
-    if (!contact) return [];
-    const linkedIds = new Set(
-      state.events.filter((e) => e.contactId === id && e.dealId).map((e) => e.dealId!),
-    );
-    return state.deals.filter(
-      (d) =>
-        linkedIds.has(d.id) ||
-        Object.values(d.values).some((v) => typeof v === "string" && v === title),
-    );
-  }, [state.deals, state.events, contact, id, title]);
+  // Relación real: siempre por contactId, nunca por coincidencia de texto.
+  const deals = useMemo(() => contactDeals(state, id), [state, id]);
 
   if (!contact) {
     return (
@@ -96,11 +96,12 @@ function LeadPage() {
     );
   }
 
-  const email = fields.find((f) => f.type === "email");
-  const phone = fields.find((f) => f.type === "phone");
+  // Campos identificados por rol explícito (configurable en Ajustes).
+  const email = emailField(fields);
+  const phone = phoneField(fields);
+  const company = companyField(fields);
   const emailValue = email ? String(contact.values[email.id] ?? "") : "";
   const phoneValue = phone ? String(contact.values[phone.id] ?? "") : "";
-  const company = fields.find((f) => f.id !== status?.id && f.type === "text" && f.role !== "title");
   const companyValue = company ? String(contact.values[company.id] ?? "") : "";
 
   const setValue = (fieldId: string, value: unknown) =>
@@ -144,7 +145,13 @@ function LeadPage() {
     setState((s) => ({
       ...s,
       deals: [
-        { id: dealId, createdAt: new Date().toISOString(), stageId: s.stages[0]?.id ?? "", values },
+        {
+          id: dealId,
+          createdAt: new Date().toISOString(),
+          stageId: s.stages[0]?.id ?? "",
+          contactId: contact.id,
+          values,
+        },
         ...s.deals,
       ],
     }));

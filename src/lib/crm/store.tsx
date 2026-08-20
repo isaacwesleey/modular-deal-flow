@@ -35,6 +35,9 @@ const LEGACY_KEY = "crm-remix-state-v1";
  * hashing de contraseñas, sesiones firmadas y RLS/permisos en el backend.
  */
 
+/** Tope de eventos guardados por organización (evita reventar la cuota de localStorage). */
+export const MAX_EVENTS = 500;
+
 /** Asegura que existan los roles de campo en estados guardados antes de esta versión. */
 function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
   let list = fields;
@@ -45,22 +48,56 @@ function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
     const candidate = list.find((f) => f.type === "currency" || f.type === "number");
     if (candidate) list = list.map((f) => (f.id === candidate.id ? { ...f, role: "amount" as const } : f));
   }
+  if (!withAmount) {
+    // Roles de contacto: email, teléfono y empresa por defecto según el tipo.
+    const assign = (role: "email" | "phone" | "company", pick: (f: FieldDef) => boolean) => {
+      if (list.some((f) => f.role === role)) return;
+      const candidate = list.find((f) => !f.role && pick(f));
+      if (candidate) list = list.map((f) => (f.id === candidate.id ? { ...f, role } : f));
+    };
+    assign("email", (f) => f.type === "email");
+    assign("phone", (f) => f.type === "phone");
+    assign("company", (f) => f.type === "text");
+  }
   return list;
 }
 
 function migrateTenantState(s: CrmState): CrmState {
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
+  const contactFields = ensureRoles(s.contactFields ?? [], false);
+  const contacts = (s.contacts ?? []).filter(
+    (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
+  );
+  const titleFieldId = contactFields.find((f) => f.role === "title")?.id;
+  /**
+   * Migración: los deals antiguos no tenían relación real con el contacto.
+   * Se enlazan una única vez por coincidencia de texto y a partir de ahí
+   * la relación vive en `contactId` (nunca se vuelve a adivinar).
+   */
+  const byTitle = new Map<string, string>();
+  if (titleFieldId) {
+    for (const c of contacts) {
+      const t = String(c.values[titleFieldId] ?? "").trim().toLowerCase();
+      if (t && !byTitle.has(t)) byTitle.set(t, c.id);
+    }
+  }
+  const deals = (s.deals ?? []).map((d) => {
+    if (d.contactId) return d;
+    const match = Object.values(d.values).find(
+      (v) => typeof v === "string" && byTitle.has(v.trim().toLowerCase()),
+    );
+    return match ? { ...d, contactId: byTitle.get(String(match).trim().toLowerCase())! } : d;
+  });
   return {
     ...defaultState(),
     ...s,
-    contactFields: ensureRoles(s.contactFields ?? [], false),
+    contactFields,
     dealFields: ensureRoles(s.dealFields ?? [], true),
-    events: s.events ?? [],
+    events: (s.events ?? []).slice(0, MAX_EVENTS),
     savedViews: s.savedViews ?? [],
+    deals,
     // Purga automática de la papelera pasado el plazo de retención.
-    contacts: (s.contacts ?? []).filter(
-      (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
-    ),
+    contacts,
   };
 }
 
@@ -237,7 +274,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         ...r,
         tenants: {
           ...r.tenants,
-          [id]: { ...t, state: { ...t.state, events: [...events, ...t.state.events] } },
+          [id]: {
+            ...t,
+            state: {
+              ...t.state,
+              // Tope por organización: se descartan los eventos más antiguos.
+              events: [...events, ...t.state.events].slice(0, MAX_EVENTS),
+            },
+          },
         },
       };
     });

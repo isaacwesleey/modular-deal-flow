@@ -53,7 +53,7 @@ const emptyTask = (): Task => ({
 });
 
 function TareasPage() {
-  const { state, setState } = useCrm();
+  const { state, setState, logEvents } = useCrm();
   const [view, setView] = useState<"lista" | "calendario">("lista");
   const [draft, setDraft] = useState<Task | null>(null);
 
@@ -226,6 +226,16 @@ function TareasPage() {
                 className="text-destructive hover:text-destructive"
                 onClick={() => {
                   setState((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== draft.id) }));
+                  logEvents([
+                    {
+                      type: "task.deleted",
+                      taskId: draft.id,
+                      ...(draft.linkType === "contact" && draft.linkId
+                        ? { contactId: draft.linkId }
+                        : {}),
+                      text: draft.title,
+                    },
+                  ]);
                   setDraft(null);
                 }}
               >

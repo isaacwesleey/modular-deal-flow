@@ -439,6 +439,21 @@ function FieldEditor({
                       Propietario
                     </SelectItem>
                   )}
+                  {!isDeal && (
+                    <SelectItem value="company" disabled={f.type !== "text"}>
+                      Empresa
+                    </SelectItem>
+                  )}
+                  {!isDeal && (
+                    <SelectItem value="email" disabled={f.type !== "email"}>
+                      Email principal
+                    </SelectItem>
+                  )}
+                  {!isDeal && (
+                    <SelectItem value="phone" disabled={f.type !== "phone"}>
+                      Teléfono principal
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
