@@ -53,7 +53,7 @@ const fmtDate = (iso: string) =>
 function LeadPage() {
   const { id } = Route.useParams();
   const { state, setState, tenantUsers, logEvents } = useCrm();
-  const { update, setStatus, setOwner, remove, addNote } = useContacts();
+  const { update, setStatus, setOwner, remove, addNote, notifyTaskAssigned } = useContacts();
   const navigate = useNavigate();
 
   const contact = state.contacts.find((c) => c.id === id);
@@ -128,6 +128,7 @@ function LeadPage() {
       ],
     }));
     logEvents([{ type: "task.created", contactId: contact.id, taskId, text: newTask.trim() }]);
+    notifyTaskAssigned(contact.id, newTask.trim(), taskId);
     setNewTask("");
     toast.success("Tarea creada");
   };
