@@ -702,7 +702,6 @@ function ContactosPage() {
               onClick={() => {
                 contactsApi.remove(selected);
                 setSelected([]);
-                toast.success("Movidos a la papelera");
               }}
             >
               Eliminar
