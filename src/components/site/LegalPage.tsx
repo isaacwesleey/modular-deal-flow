@@ -19,7 +19,7 @@ export function LegalPage({
 }) {
   return (
     <SiteShell>
-      <div className="ventia-hero-bg border-b border-ventia-line">
+      <div className="ventia-soft-bg border-b border-ventia-line">
         <div className="mx-auto max-w-3xl px-4 py-14">
           <h1 className="text-3xl font-extrabold sm:text-4xl">{title}</h1>
           <p className="mt-3 text-ventia-ink-soft">{intro}</p>

@@ -8,7 +8,7 @@ import { PasswordStrength } from "@/components/crm/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { VentiaMark } from "@/components/site/VentiaLogo";
+import { VentiaLogo } from "@/components/site/VentiaLogo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/auth")({
@@ -51,9 +51,8 @@ function AuthPage() {
       <div className="w-full max-w-md space-y-4">
         <div className="text-center">
           <Link to="/" className="mx-auto flex w-fit items-center gap-2">
-            <VentiaMark className="h-11 w-11" />
+            <VentiaLogo size="lg" />
           </Link>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight">Ventia</h1>
           <p className="text-sm text-muted-foreground">CRM multi organización para equipos comerciales.</p>
         </div>
 

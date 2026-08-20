@@ -74,7 +74,7 @@ export function PricingPlans({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
       <p className="mt-6 text-center text-xs text-ventia-ink-soft">
-        Precios sin IVA. 14 días de prueba en Pro, sin tarjeta. Cancelas cuando quieras.
+        Precios sin IVA. 14 días de prueba sin tarjeta. Sin permanencia: exportas todo y cancelas cuando quieras.
       </p>
     </div>
   );
