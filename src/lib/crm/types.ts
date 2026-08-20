@@ -68,7 +68,9 @@ export type ActivityType =
   | "task.deleted"
   | "note.deleted"
   | "deal.linked"
-  | "deal.stage";
+  | "deal.stage"
+  | "deal.deleted"
+  | "deal.restored";
 
 /** Registro de auditoría por organización. */
 export interface ActivityEvent {
@@ -108,6 +110,8 @@ export interface Deal {
   /** Relación real con el contacto (nunca se deduce por texto). */
   contactId?: string;
   values: FieldValues;
+  /** Si está presente, la oportunidad está en la papelera (mismo trato que los contactos). */
+  deletedAt?: string;
 }
 
 export interface Stage {

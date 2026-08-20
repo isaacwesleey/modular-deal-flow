@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AyudaRouteImport } from './routes/ayuda'
 import { Route as InicioRouteImport } from './routes/inicio'
 import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as NotasRouteImport } from './routes/notas'
@@ -48,6 +49,11 @@ const AjustesRoute = AjustesRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AyudaRoute = AyudaRouteImport.update({
+  id: '/ayuda',
+  path: '/ayuda',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InicioRoute = InicioRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/ayuda': typeof AyudaRoute
   '/inicio': typeof InicioRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/ayuda': typeof AyudaRoute
   '/inicio': typeof InicioRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/ayuda': typeof AyudaRoute
   '/inicio': typeof InicioRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/ayuda'
     | '/inicio'
     | '/invitacion'
     | '/notas'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/ayuda'
     | '/inicio'
     | '/invitacion'
     | '/notas'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/ayuda'
     | '/inicio'
     | '/invitacion'
     | '/notas'
@@ -272,6 +284,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AjustesRoute: typeof AjustesRoute
   AuthRoute: typeof AuthRoute
+  AyudaRoute: typeof AyudaRoute
   InicioRoute: typeof InicioRoute
   InvitacionRoute: typeof InvitacionRoute
   NotasRoute: typeof NotasRoute
@@ -318,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ayuda': {
+      id: '/ayuda'
+      path: '/ayuda'
+      fullPath: '/ayuda'
+      preLoaderRoute: typeof AyudaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inicio': {
@@ -440,6 +460,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AjustesRoute: AjustesRoute,
   AuthRoute: AuthRoute,
+  AyudaRoute: AyudaRoute,
   InicioRoute: InicioRoute,
   InvitacionRoute: InvitacionRoute,
   NotasRoute: NotasRoute,

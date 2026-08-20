@@ -16,6 +16,8 @@ import {
   ShieldCheck,
   UserCircle2,
   MailWarning,
+  LifeBuoy,
+  HardDrive,
 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { useDueTaskNotifications } from "@/lib/crm/useDueTasks";
@@ -220,6 +222,11 @@ export function CrmLayout({ children }: { children: ReactNode }) {
                     <UserCircle2 className="mr-2 h-4 w-4" /> Mi cuenta
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/ayuda">
+                    <LifeBuoy className="mr-2 h-4 w-4" /> Ayuda
+                  </Link>
+                </DropdownMenuItem>
                 {canManageSettings && (
                   <DropdownMenuItem asChild>
                     <Link to="/ajustes">
@@ -271,6 +278,8 @@ export function CrmLayout({ children }: { children: ReactNode }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <StorageWarning />
 
         {supportMode && (
           <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm">
@@ -351,6 +360,33 @@ export function AccessDenied({ message }: { message?: string }) {
       <Button asChild className="mt-4">
         <Link to="/inicio">Volver al inicio</Link>
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Aviso de almacenamiento lleno: localStorage tiene un límite (unos 5 MB) y,
+ * si se supera, los cambios dejan de guardarse. En vez de fallar en silencio,
+ * se avisa y se ofrece exportar y liberar espacio.
+ */
+function StorageWarning() {
+  const { storageError, exportBackup, freeUpSpace } = useCrm();
+  if (!storageError) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">
+      <HardDrive className="h-4 w-4 shrink-0 text-destructive" />
+      <span>
+        <strong>No se han podido guardar los últimos cambios:</strong> el almacenamiento del
+        navegador está lleno. Descarga una copia y libera espacio para seguir trabajando.
+      </span>
+      <div className="ml-auto flex gap-2">
+        <Button size="sm" variant="outline" onClick={exportBackup}>
+          Descargar copia
+        </Button>
+        <Button size="sm" onClick={freeUpSpace}>
+          Liberar espacio
+        </Button>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, MoreHorizontal, ChevronLeft, ChevronRight, Trash2, RotateCcw } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
 import { amountField, recordTitle, sumDeals } from "@/lib/crm/roles";
@@ -8,8 +8,24 @@ import { ModuleOff, PageHeader } from "@/components/crm/Layout";
 import { RecordDialog } from "@/components/crm/RecordDialog";
 import { ContactPicker } from "@/components/crm/ContactPicker";
 import { FieldValueView } from "@/components/crm/fields";
+import { STAGE_COLORS, StageDeleteDialog } from "@/components/crm/stages";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { trashDaysLeft } from "@/lib/crm/roles";
 import type { Deal, FieldValues } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/pipeline")({
@@ -27,6 +43,10 @@ export const Route = createFileRoute("/pipeline")({
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
+function isEmptyValue(v: unknown) {
+  return v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
+}
+
 const NO_STAGE = "__sin_etapa__";
 
 /** Aplica (o retira) la relación con el contacto en un deal. */
@@ -36,7 +56,9 @@ function applyContact(deal: Deal, contactId: string | undefined): Deal {
 }
 
 function PipelinePage() {
-  const { state, setState, logEvents } = useCrm();
+  const { state, setState, logEvents, canManageSettings } = useCrm();
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [newStage, setNewStage] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Deal | null>(null);
   const [creatingStage, setCreatingStage] = useState<string | null>(null);
@@ -48,7 +70,9 @@ function PipelinePage() {
   const dialogValues = useMemo(() => editing?.values ?? {}, [editing]);
 
   const stageIds = useMemo(() => new Set(state.stages.map((s) => s.id)), [state.stages]);
-  const orphans = state.deals.filter((d) => !stageIds.has(d.stageId));
+  const liveDeals = useMemo(() => state.deals.filter((d) => !d.deletedAt), [state.deals]);
+  const trashed = useMemo(() => state.deals.filter((d) => d.deletedAt), [state.deals]);
+  const orphans = liveDeals.filter((d) => !stageIds.has(d.stageId));
 
   const contactName = (contactId?: string) => {
     const c = contactId ? state.contacts.find((x) => x.id === contactId) : undefined;
@@ -137,7 +161,7 @@ function PipelinePage() {
       id: st.id,
       name: st.name,
       color: st.color,
-      deals: state.deals.filter((d) => d.stageId === st.id),
+      deals: liveDeals.filter((d) => d.stageId === st.id),
       canAdd: true,
     })),
     ...(orphans.length
@@ -147,11 +171,50 @@ function PipelinePage() {
 
   const firstStageId = state.stages[0]?.id;
 
+  const addStage = () => {
+    const name = newStage.trim();
+    if (!name) return;
+    setState((s) => ({
+      ...s,
+      stages: [
+        ...s.stages,
+        { id: uid(), name, color: STAGE_COLORS[s.stages.length % STAGE_COLORS.length]! },
+      ],
+    }));
+    setNewStage("");
+  };
+
+  const restoreDeal = (deal: Deal) => {
+    setState((s) => ({
+      ...s,
+      deals: s.deals.map((d) => {
+        if (d.id !== deal.id) return d;
+        const { deletedAt: _drop, ...rest } = d;
+        return stageIds.has(rest.stageId) || !firstStageId ? rest : { ...rest, stageId: firstStageId };
+      }),
+    }));
+    logEvents([
+      {
+        type: "deal.restored",
+        dealId: deal.id,
+        ...(deal.contactId ? { contactId: deal.contactId } : {}),
+        label: recordTitle(state.dealFields, deal.values),
+      },
+    ]);
+  };
+
   return (
     <>
       <PageHeader
         title="Pipeline"
         subtitle="Arrastra las tarjetas entre etapas o reordénalas dentro de una columna."
+        action={
+          trashed.length ? (
+            <Button variant="outline" size="sm" onClick={() => setTrashOpen(true)}>
+              <Trash2 className="mr-1 h-4 w-4" /> Papelera ({trashed.length})
+            </Button>
+          ) : undefined
+        }
       />
 
       <div className="flex gap-4 overflow-x-auto pb-4">
@@ -166,12 +229,15 @@ function PipelinePage() {
             className="flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 p-3"
           >
             <div className="mb-3 flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: col.color }} />
-              <h2 className="text-sm font-semibold">{col.name}</h2>
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: col.color }} />
+              <h2 className="truncate text-sm font-semibold">{col.name}</h2>
               {amount && (
-                <span className="ml-auto text-xs text-muted-foreground">
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                   {eur(sumDeals(fields, col.deals))}
                 </span>
+              )}
+              {col.id !== NO_STAGE && canManageSettings && (
+                <StageMenu stageId={col.id} className={amount ? "" : "ml-auto"} />
               )}
             </div>
 
@@ -218,11 +284,14 @@ function PipelinePage() {
                   }`}
                   style={{ borderLeftColor: col.color }}
                 >
-                  {quick.map((f, i) => (
-                    <div key={f.id} className={i === 0 ? "text-sm font-medium" : "mt-1 text-xs text-muted-foreground"}>
-                      <FieldValueView field={f} value={d.values[f.id]} />
-                    </div>
-                  ))}
+                  {/* En la tarjeta no pintamos campos vacíos: evita filas de guiones. */}
+                  {quick
+                    .filter((f, i) => i === 0 || !isEmptyValue(d.values[f.id]))
+                    .map((f, i) => (
+                      <div key={f.id} className={i === 0 ? "text-sm font-medium" : "mt-1 text-xs text-muted-foreground"}>
+                        <FieldValueView field={f} value={d.values[f.id]} />
+                      </div>
+                    ))}
                   {contactName(d.contactId) && (
                     <p className="mt-2 text-xs text-muted-foreground">
                       👤 {contactName(d.contactId)}
@@ -248,8 +317,31 @@ function PipelinePage() {
             )}
           </div>
         ))}
-        {!state.stages.length && (
-          <p className="text-sm text-muted-foreground">Crea etapas desde Ajustes.</p>
+        {canManageSettings ? (
+          <div className="flex w-64 shrink-0 flex-col rounded-xl border border-dashed p-3">
+            <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Añadir etapa</h2>
+            <Input
+              value={newStage}
+              placeholder="Nombre de la etapa"
+              onChange={(e) => setNewStage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addStage();
+              }}
+              className="h-9"
+            />
+            <Button size="sm" className="mt-2" onClick={addStage} disabled={!newStage.trim()}>
+              <Plus className="mr-1 h-4 w-4" /> Crear etapa
+            </Button>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              También puedes gestionarlas en Ajustes › Etapas.
+            </p>
+          </div>
+        ) : (
+          !state.stages.length && (
+            <p className="text-sm text-muted-foreground">
+              Aún no hay etapas. Pide a un administrador que las cree.
+            </p>
+          )
         )}
       </div>
 
@@ -273,9 +365,165 @@ function PipelinePage() {
           </div>
         }
         {...(editing
-          ? { onDelete: () => setState((s) => ({ ...s, deals: s.deals.filter((d) => d.id !== editing.id) })) }
+          ? {
+              deleteConfirm:
+                "La oportunidad irá a la papelera y podrás restaurarla durante 30 días.",
+              onDelete: () => {
+                setState((s) => ({
+                  ...s,
+                  deals: s.deals.map((d) =>
+                    d.id === editing.id ? { ...d, deletedAt: new Date().toISOString() } : d,
+                  ),
+                }));
+                logEvents([
+                  {
+                    type: "deal.deleted",
+                    dealId: editing.id,
+                    ...(editing.contactId ? { contactId: editing.contactId } : {}),
+                    label: recordTitle(state.dealFields, editing.values),
+                  },
+                ]);
+              },
+            }
           : {})}
       />
+
+      <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Papelera de oportunidades</DialogTitle>
+          </DialogHeader>
+          <ul className="max-h-80 space-y-2 overflow-y-auto">
+            {trashed.map((d) => (
+              <li key={d.id} className="flex items-center gap-2 rounded-lg border p-2.5 text-sm">
+                <span className="truncate">{recordTitle(state.dealFields, d.values)}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {trashDaysLeft(d.deletedAt!)} días
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => restoreDeal(d)}>
+                  <RotateCcw className="mr-1 h-3.5 w-3.5" /> Restaurar
+                </Button>
+              </li>
+            ))}
+            {!trashed.length && (
+              <p className="text-sm text-muted-foreground">La papelera está vacía.</p>
+            )}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            Las oportunidades se borran definitivamente 30 días después de eliminarlas.
+          </p>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** Menú de la columna: renombrar, color, mover y eliminar la etapa desde el propio tablero. */
+function StageMenu({ stageId, className }: { stageId: string; className?: string }) {
+  const { state, setState } = useCrm();
+  const [renaming, setRenaming] = useState(false);
+  const stage = state.stages.find((s) => s.id === stageId);
+  const [name, setName] = useState(stage?.name ?? "");
+  if (!stage) return null;
+
+  const index = state.stages.findIndex((s) => s.id === stageId);
+  const move = (dir: -1 | 1) =>
+    setState((s) => {
+      const list = [...s.stages];
+      const to = index + dir;
+      if (to < 0 || to >= list.length) return s;
+      const [m] = list.splice(index, 1);
+      list.splice(to, 0, m!);
+      return { ...s, stages: list };
+    });
+
+  const setColor = (color: string) =>
+    setState((s) => ({
+      ...s,
+      stages: s.stages.map((x) => (x.id === stageId ? { ...x, color } : x)),
+    }));
+
+  const rename = () => {
+    const value = name.trim();
+    if (value)
+      setState((s) => ({
+        ...s,
+        stages: s.stages.map((x) => (x.id === stageId ? { ...x, name: value } : x)),
+      }));
+    setRenaming(false);
+  };
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className={`shrink-0 rounded p-1 text-muted-foreground hover:bg-accent ${className ?? ""}`}
+            aria-label={`Opciones de la etapa ${stage.name}`}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              setName(stage.name);
+              setRenaming(true);
+            }}
+          >
+            Renombrar etapa
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={index === 0} onSelect={() => move(-1)}>
+            <ChevronLeft className="mr-1 h-4 w-4" /> Mover a la izquierda
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={index === state.stages.length - 1}
+            onSelect={() => move(1)}
+          >
+            <ChevronRight className="mr-1 h-4 w-4" /> Mover a la derecha
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <div className="flex gap-1.5 px-2 py-1.5">
+            {STAGE_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`h-5 w-5 rounded-full ring-offset-2 ring-offset-popover ${stage.color === c ? "ring-2 ring-foreground" : ""}`}
+                style={{ background: c }}
+                aria-label="Color de la etapa"
+              />
+            ))}
+          </div>
+          <DropdownMenuSeparator />
+          <StageDeleteDialog
+            stage={stage}
+            trigger={
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={(e) => e.preventDefault()}
+              >
+                <Trash2 className="mr-1 h-4 w-4" /> Eliminar etapa
+              </DropdownMenuItem>
+            }
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={renaming} onOpenChange={setRenaming}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Renombrar etapa</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={name}
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && rename()}
+          />
+          <Button onClick={rename}>Guardar</Button>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

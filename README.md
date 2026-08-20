@@ -138,3 +138,37 @@ en cliente se queda solo como comodidad visual.
 npm i
 npm run dev
 ```
+
+## Rendimiento medido
+
+Todo el estado vive en `localStorage` bajo la clave `ventia-root-v1` (las claves
+antiguas de la plantilla se migran automáticamente al abrir la app).
+
+Medición real en Chromium, escritorio 1280 px, con **2.000 contactos y 500
+oportunidades** en una organización (~700 KB de JSON):
+
+| Escenario | Tiempo |
+|---|---|
+| Carga de `/inicio` | ~0,9 s |
+| Carga de `/contactos` (listado paginado) | ~0,9 s |
+| Carga de `/pipeline` (Kanban, 500 tarjetas) | ~0,8 s |
+| Carga de `/tareas` | ~0,8 s |
+| Teclear una búsqueda de 12 caracteres | ~0,7 s en total (~60 ms por pulsación) |
+
+Optimizaciones aplicadas:
+
+- Listados paginados (contactos, tareas y notas) con tamaño de página configurable
+  en el perfil: nunca se pintan miles de filas a la vez.
+- Filtros y ordenaciones memoizados con `useMemo`, dependiendo del estado mínimo.
+- Búsquedas con `useDeferredValue`, de modo que el tecleo no bloquea la interfaz
+  mientras se recalcula el filtro.
+- Tope de 500 eventos de historial por organización y papelera con purga a 30 días,
+  para que el JSON persistido no crezca sin control.
+
+Hasta dónde aguanta: con este volumen la aplicación es fluida. A partir de unos
+**10.000 contactos** (o ~3-4 MB de JSON) se nota el coste de serializar el estado
+completo en cada escritura y se acerca el límite de cuota de `localStorage`
+(5-10 MB según el navegador); ese es el punto en el que toca mover los datos a un
+backend real siguiendo la sección de migración. El estado sigue colgando de un
+único contexto: si necesitas más, los siguientes pasos naturales son separar el
+contexto de configuración del de datos y virtualizar el listado de contactos.

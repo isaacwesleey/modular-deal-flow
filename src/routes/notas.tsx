@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useMemo, useState, useDeferredValue } from "react";
+import { Trash2, Search } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
-import { activeContacts, recordTitle } from "@/lib/crm/roles";
+import { activeContacts, recordTitle, activeDeals } from "@/lib/crm/roles";
 import { uid } from "@/lib/crm/defaults";
 import { ModuleOff, PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/crm/Pagination";
 import {
   Select,
   SelectContent,
@@ -28,7 +30,11 @@ export const Route = createFileRoute("/notas")({
 });
 
 function NotasPage() {
-  const { state, setState, logEvents } = useCrm();
+  const { state, setState, logEvents, user } = useCrm();
+  const [q, setQ] = useState("");
+  // Filtrar sobre un valor diferido mantiene el tecleo fluido con miles de filas.
+  const dq = useDeferredValue(q);
+  const [page, setPage] = useState(0);
   const [text, setText] = useState("");
   const [link, setLink] = useState("none:");
 
@@ -59,13 +65,29 @@ function NotasPage() {
       return c ? `👤 ${recordTitle(state.contactFields, c.values, "Sin nombre")}` : "";
     }
     if (t === "deal") {
-      const d = state.deals.find((x) => x.id === id);
+      const d = activeDeals(state).find((x) => x.id === id);
       return d ? `💼 ${recordTitle(state.dealFields, d.values)}` : "";
     }
     return "";
   };
 
-  const sorted = [...state.notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const sorted = useMemo(() => {
+    const needle = dq.trim().toLowerCase();
+    const list = needle
+      ? state.notes.filter(
+          (n) =>
+            n.text.toLowerCase().includes(needle) ||
+            label(n.linkType, n.linkId).toLowerCase().includes(needle),
+        )
+      : [...state.notes];
+    return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.notes, state.contacts, state.deals, dq]);
+
+  const PAGE_SIZE = user?.prefs?.pageSize ?? DEFAULT_PAGE_SIZE;
+  const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const paged = sorted.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <>
@@ -91,7 +113,7 @@ function NotasPage() {
                 </SelectItem>
               ))}
               {state.modules.pipeline &&
-                state.deals.map((d) => (
+                activeDeals(state).map((d) => (
                   <SelectItem key={d.id} value={`deal:${d.id}`}>
                     💼 {recordTitle(state.dealFields, d.values)}
                   </SelectItem>
@@ -104,8 +126,21 @@ function NotasPage() {
         </div>
       </div>
 
+      <div className="relative mb-4 max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(0);
+          }}
+          placeholder="Buscar notas..."
+          className="pl-9"
+        />
+      </div>
+
       <ol className="relative space-y-4 border-l pl-6">
-        {sorted.map((n) => (
+        {paged.map((n) => (
           <li key={n.id} className="group relative">
             <span className="absolute -left-[1.9rem] top-1.5 h-3 w-3 rounded-full border-2 border-background bg-primary" />
             <div className="rounded-xl border bg-card p-3">
@@ -134,8 +169,20 @@ function NotasPage() {
             </div>
           </li>
         ))}
-        {!sorted.length && <p className="text-sm text-muted-foreground">Aún no hay notas.</p>}
+        {!sorted.length && (
+          <p className="text-sm text-muted-foreground">
+            {q ? "Ninguna nota coincide con la búsqueda." : "Aún no hay notas."}
+          </p>
+        )}
       </ol>
+
+      <Pagination
+        page={current}
+        pages={pages}
+        total={sorted.length}
+        onChange={setPage}
+        label="notas"
+      />
     </>
   );
 }
