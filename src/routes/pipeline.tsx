@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trashDaysLeft } from "@/lib/crm/roles";
+import { isEmptyValue } from "@/lib/crm/validation";
 import type { Deal, FieldValues } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/pipeline")({
