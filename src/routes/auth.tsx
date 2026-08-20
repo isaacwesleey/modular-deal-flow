@@ -20,7 +20,7 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-const DEMOS = [
+const QUICK_ACCESS = [
   { id: "u-super", label: "Super admin", desc: "super@crmremix.io — ve todas las organizaciones", icon: ShieldCheck },
   { id: "u-admin", label: "Admin de organización", desc: "admin@miempresa.com — 2 organizaciones", icon: UserCog },
   { id: "u-user", label: "Usuario", desc: "usuario@miempresa.com — sin Ajustes", icon: UserIcon },
@@ -51,7 +51,7 @@ function AuthPage() {
             ◆
           </div>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">CRM Remix</h1>
-          <p className="text-sm text-muted-foreground">CRM multi organización, simulado en tu navegador.</p>
+          <p className="text-sm text-muted-foreground">CRM multi organización para equipos comerciales.</p>
         </div>
 
         <div className="rounded-xl border bg-background p-5 shadow-sm">
@@ -116,10 +116,10 @@ function AuthPage() {
 
         <div className="rounded-xl border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Accesos rápidos de demo
+            Acceso rápido
           </p>
           <div className="mt-3 space-y-2">
-            {DEMOS.map((d) => (
+            {QUICK_ACCESS.map((d) => (
               <button
                 key={d.id}
                 type="button"
@@ -137,9 +137,6 @@ function AuthPage() {
               </button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Contraseña de todos los usuarios demo: <code>demo1234</code>
-          </p>
         </div>
       </div>
     </div>
