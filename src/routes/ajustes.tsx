@@ -398,19 +398,7 @@ function StageEditor() {
                 />
               ))}
             </div>
-            <button
-              onClick={() =>
-                setState((s) => ({
-                  ...s,
-                  stages: s.stages.filter((x) => x.id !== st.id),
-                  deals: s.deals.filter((d) => d.stageId !== st.id),
-                }))
-              }
-              className="text-muted-foreground hover:text-destructive"
-              aria-label="Borrar etapa"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <DeleteStageButton stage={st} />
           </div>
         ))}
       </div>
