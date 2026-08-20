@@ -74,7 +74,10 @@ export function CrmLayout({ children }: { children: ReactNode }) {
 
   const resendVerification = () => {
     const res = requestVerification();
-    if (!res.ok) return toast.error(res.error ?? "No se pudo reenviar");
+    if (!res.ok) {
+      toast.error(res.error ?? "No se pudo reenviar");
+      return;
+    }
     setVerifyLink(res.token ? tokenLink("/verificar", res.token) : null);
     toast.success("Te hemos enviado un correo de confirmación");
   };

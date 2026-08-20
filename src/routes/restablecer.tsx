@@ -59,7 +59,7 @@ function RestablecerPage() {
   };
 
   return (
-    <AuthShell title="Crea tu nueva contraseña" subtitle={found?.email}>
+    <AuthShell title="Crea tu nueva contraseña" {...(found?.email ? { subtitle: found.email } : {})}>
       <form className="space-y-3" onSubmit={submit}>
         <div className="space-y-1.5">
           <Label htmlFor="np">Nueva contraseña</Label>

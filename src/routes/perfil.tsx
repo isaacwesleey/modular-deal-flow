@@ -50,7 +50,10 @@ function PerfilPage() {
   const saveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const res = updateProfile({ name, email });
-    if (!res.ok) return toast.error(res.error ?? "No se pudo guardar");
+    if (!res.ok) {
+      toast.error(res.error ?? "No se pudo guardar");
+      return;
+    }
     toast.success(
       email.trim().toLowerCase() !== user.email
         ? "Datos guardados. Confirma tu nueva dirección de correo."
@@ -60,9 +63,15 @@ function PerfilPage() {
 
   const savePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (next !== confirm) return toast.error("Las contraseñas nuevas no coinciden.");
+    if (next !== confirm) {
+      toast.error("Las contraseñas nuevas no coinciden.");
+      return;
+    }
     const res = changePassword(current, next);
-    if (!res.ok) return toast.error(res.error ?? "No se pudo cambiar la contraseña");
+    if (!res.ok) {
+      toast.error(res.error ?? "No se pudo cambiar la contraseña");
+      return;
+    }
     setCurrent("");
     setNext("");
     setConfirm("");
@@ -71,7 +80,10 @@ function PerfilPage() {
 
   const resend = () => {
     const res = requestVerification();
-    if (!res.ok) return toast.error(res.error ?? "No se pudo reenviar");
+    if (!res.ok) {
+      toast.error(res.error ?? "No se pudo reenviar");
+      return;
+    }
     setVerifyLink(res.token ? tokenLink("/verificar", res.token) : null);
     toast.success("Te hemos enviado un correo de confirmación");
   };
