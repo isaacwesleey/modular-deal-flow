@@ -3,7 +3,14 @@ import { useMemo, useState } from "react";
 import { Plus, MoreHorizontal, ChevronLeft, ChevronRight, Trash2, RotateCcw } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
-import { amountField, recordTitle, sumDeals } from "@/lib/crm/roles";
+import {
+  amountField,
+  defaultPipelineId,
+  pipelineStages,
+  pipelines as allPipelines,
+  recordTitle,
+  sumDeals,
+} from "@/lib/crm/roles";
 import { ModuleOff, PageHeader } from "@/components/crm/Layout";
 import { RecordDialog } from "@/components/crm/RecordDialog";
 import { ContactPicker } from "@/components/crm/ContactPicker";
@@ -22,9 +29,17 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { trashDaysLeft } from "@/lib/crm/roles";
 import type { Deal, FieldValues } from "@/lib/crm/types";
 
@@ -63,14 +78,33 @@ function PipelinePage() {
   const [editing, setEditing] = useState<Deal | null>(null);
   const [creatingStage, setCreatingStage] = useState<string | null>(null);
   const [linkedContact, setLinkedContact] = useState<string | undefined>(undefined);
+  const [newPipeline, setNewPipeline] = useState("");
+  const [pipelineDialog, setPipelineDialog] = useState(false);
+  const [activePipeline, setActivePipeline] = useState<string | null>(null);
 
   const fields = state.dealFields;
   const quick = useMemo(() => fields.filter((f) => f.showInQuickView), [fields]);
   const amount = amountField(fields);
   const dialogValues = useMemo(() => editing?.values ?? {}, [editing]);
 
-  const stageIds = useMemo(() => new Set(state.stages.map((s) => s.id)), [state.stages]);
-  const liveDeals = useMemo(() => state.deals.filter((d) => !d.deletedAt), [state.deals]);
+  const pipelineList = allPipelines(state);
+  const pipelineId =
+    activePipeline && pipelineList.some((p) => p.id === activePipeline)
+      ? activePipeline
+      : defaultPipelineId(state);
+  const stages = useMemo(() => pipelineStages(state, pipelineId), [state, pipelineId]);
+  const stageIds = useMemo(() => new Set(stages.map((s) => s.id)), [stages]);
+  const allStageIds = useMemo(() => new Set(state.stages.map((s) => s.id)), [state.stages]);
+  // Solo las oportunidades de este embudo (o las huérfanas, que caen aquí).
+  const liveDeals = useMemo(
+    () =>
+      state.deals.filter(
+        (d) =>
+          !d.deletedAt &&
+          (stageIds.has(d.stageId) || (!allStageIds.has(d.stageId) && pipelineId === defaultPipelineId(state))),
+      ),
+    [state.deals, stageIds, allStageIds, pipelineId, state],
+  );
   const trashed = useMemo(() => state.deals.filter((d) => d.deletedAt), [state.deals]);
   const orphans = liveDeals.filter((d) => !stageIds.has(d.stageId));
 
@@ -157,7 +191,7 @@ function PipelinePage() {
   };
 
   const columns = [
-    ...state.stages.map((st) => ({
+    ...stages.map((st) => ({
       id: st.id,
       name: st.name,
       color: st.color,
@@ -169,7 +203,7 @@ function PipelinePage() {
       : []),
   ];
 
-  const firstStageId = state.stages[0]?.id;
+  const firstStageId = stages[0]?.id;
 
   const addStage = () => {
     const name = newStage.trim();
@@ -178,10 +212,25 @@ function PipelinePage() {
       ...s,
       stages: [
         ...s.stages,
-        { id: uid(), name, color: STAGE_COLORS[s.stages.length % STAGE_COLORS.length]! },
+        { id: uid(), name, color: STAGE_COLORS[s.stages.length % STAGE_COLORS.length]!, pipelineId },
       ],
     }));
     setNewStage("");
+  };
+
+  /** Crea un embudo nuevo con una primera etapa para que no nazca vacío. */
+  const addPipeline = () => {
+    const name = newPipeline.trim();
+    if (!name) return;
+    const id = uid();
+    setState((s) => ({
+      ...s,
+      pipelines: [...allPipelines(s), { id, name }],
+      stages: [...s.stages, { id: uid(), name: "Nueva etapa", color: STAGE_COLORS[0]!, pipelineId: id }],
+    }));
+    setActivePipeline(id);
+    setNewPipeline("");
+    setPipelineDialog(false);
   };
 
   const restoreDeal = (deal: Deal) => {
@@ -209,11 +258,30 @@ function PipelinePage() {
         title="Pipeline"
         subtitle="Arrastra las tarjetas entre etapas o reordénalas dentro de una columna."
         action={
-          trashed.length ? (
-            <Button variant="outline" size="sm" onClick={() => setTrashOpen(true)}>
-              <Trash2 className="mr-1 h-4 w-4" /> Papelera ({trashed.length})
-            </Button>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={pipelineId} onValueChange={setActivePipeline}>
+              <SelectTrigger className="h-9 w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelineList.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {canManageSettings && (
+              <Button variant="outline" size="sm" onClick={() => setPipelineDialog(true)}>
+                <Plus className="mr-1 h-4 w-4" /> Nuevo embudo
+              </Button>
+            )}
+            {trashed.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setTrashOpen(true)}>
+                <Trash2 className="mr-1 h-4 w-4" /> Papelera ({trashed.length})
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -237,7 +305,7 @@ function PipelinePage() {
                 </span>
               )}
               {col.id !== NO_STAGE && canManageSettings && (
-                <StageMenu stageId={col.id} className={amount ? "" : "ml-auto"} />
+                <StageMenu stageId={col.id} pipelineId={pipelineId} className={amount ? "" : "ml-auto"} />
               )}
             </div>
 
@@ -256,7 +324,7 @@ function PipelinePage() {
                       }))
                     }
                   >
-                    Mover todas a “{state.stages[0]?.name}”
+                    Mover todas a “{stages[0]?.name}”
                   </button>
                 )}
               </div>
@@ -355,6 +423,7 @@ function PipelinePage() {
         }}
         title={editing ? "Editar oportunidad" : "Nueva oportunidad"}
         fields={fields}
+        entity="dealFields"
         values={dialogValues}
         recordId={editing?.id ?? `nuevo-${creatingStage ?? ""}`}
         onSave={save}
@@ -388,6 +457,31 @@ function PipelinePage() {
           : {})}
       />
 
+      <Dialog open={pipelineDialog} onOpenChange={setPipelineDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nuevo embudo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Nombre</Label>
+            <Input
+              value={newPipeline}
+              onChange={(e) => setNewPipeline(e.target.value)}
+              placeholder="Postventa"
+              onKeyDown={(e) => e.key === "Enter" && addPipeline()}
+            />
+            <p className="text-xs text-muted-foreground">
+              Se creará con una primera etapa que podrás renombrar en el tablero.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={addPipeline} disabled={!newPipeline.trim()}>
+              Crear embudo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -419,20 +513,33 @@ function PipelinePage() {
 }
 
 /** Menú de la columna: renombrar, color, mover y eliminar la etapa desde el propio tablero. */
-function StageMenu({ stageId, className }: { stageId: string; className?: string }) {
+function StageMenu({
+  stageId,
+  pipelineId,
+  className,
+}: {
+  stageId: string;
+  pipelineId: string;
+  className?: string;
+}) {
   const { state, setState } = useCrm();
   const [renaming, setRenaming] = useState(false);
   const stage = state.stages.find((s) => s.id === stageId);
   const [name, setName] = useState(stage?.name ?? "");
   if (!stage) return null;
 
-  const index = state.stages.findIndex((s) => s.id === stageId);
+  // El orden se calcula dentro del embudo, no sobre la lista global de etapas.
+  const siblings = pipelineStages(state, pipelineId);
+  const index = siblings.findIndex((s) => s.id === stageId);
   const move = (dir: -1 | 1) =>
     setState((s) => {
       const list = [...s.stages];
-      const to = index + dir;
-      if (to < 0 || to >= list.length) return s;
-      const [m] = list.splice(index, 1);
+      const target = siblings[index + dir];
+      if (!target) return s;
+      const from = list.findIndex((x) => x.id === stageId);
+      const to = list.findIndex((x) => x.id === target.id);
+      if (from < 0 || to < 0) return s;
+      const [m] = list.splice(from, 1);
       list.splice(to, 0, m!);
       return { ...s, stages: list };
     });
@@ -478,7 +585,7 @@ function StageMenu({ stageId, className }: { stageId: string; className?: string
             <ChevronLeft className="mr-1 h-4 w-4" /> Mover a la izquierda
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={index === state.stages.length - 1}
+            disabled={index === siblings.length - 1}
             onSelect={() => move(1)}
           >
             <ChevronRight className="mr-1 h-4 w-4" /> Mover a la derecha

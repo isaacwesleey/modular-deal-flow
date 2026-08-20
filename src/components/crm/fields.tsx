@@ -1,4 +1,7 @@
+import { useState } from "react";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -95,10 +98,13 @@ export function FieldInput({
   field,
   value,
   onChange,
+  entity,
 }: {
   field: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
+  /** Necesario para poder crear opciones nuevas sobre la marcha. */
+  entity?: "contactFields" | "dealFields";
 }) {
   const str = value === undefined || value === null ? "" : String(value);
 
@@ -130,25 +136,36 @@ export function FieldInput({
       );
     case "select":
       return (
-        <Select {...(str ? { value: str } : {})} onValueChange={(v) => onChange(v)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecciona..." />
-          </SelectTrigger>
-          <SelectContent>
-            {(field.options ?? []).map((o) => (
-              <SelectItem key={o} value={o}>
-                {o}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="space-y-1.5">
+          <Select {...(str ? { value: str } : {})} onValueChange={(v) => onChange(v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona..." />
+            </SelectTrigger>
+            <SelectContent>
+              {(field.options ?? []).map((o) => (
+                <SelectItem key={o} value={o}>
+                  {o}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {entity && (
+            <NewOption
+              entity={entity}
+              field={field}
+              onCreated={(o) => onChange(o)}
+              placeholder="Nueva opción"
+            />
+          )}
+        </div>
       );
     case "multiselect": {
       const arr = Array.isArray(value) ? (value as string[]) : [];
       const opts = field.options ?? [];
       return (
-        <div className="flex flex-wrap gap-1.5">
-          {opts.map((o) => {
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {opts.map((o) => {
             const on = arr.includes(o);
             return (
               <button
@@ -162,12 +179,72 @@ export function FieldInput({
                 {o}
               </button>
             );
-          })}
-          {!opts.length && <p className="text-xs text-muted-foreground">Define opciones en Ajustes.</p>}
+            })}
+            {!opts.length && !entity && (
+              <p className="text-xs text-muted-foreground">Define opciones en Ajustes.</p>
+            )}
+          </div>
+          {entity && (
+            <NewOption
+              entity={entity}
+              field={field}
+              onCreated={(o) => onChange([...arr, o])}
+              placeholder="Nueva etiqueta"
+            />
+          )}
         </div>
       );
     }
     default:
       return <Input value={str} onChange={(e) => onChange(e.target.value)} />;
   }
+}
+
+/**
+ * Alta de opciones al vuelo: escribe una etiqueta nueva y queda disponible
+ * para el resto de registros, sin pasar por Ajustes.
+ */
+function NewOption({
+  entity,
+  field,
+  onCreated,
+  placeholder,
+}: {
+  entity: "contactFields" | "dealFields";
+  field: FieldDef;
+  onCreated: (option: string) => void;
+  placeholder: string;
+}) {
+  const { addFieldOption } = useCrm();
+  const [text, setText] = useState("");
+
+  const submit = () => {
+    const value = text.trim();
+    if (!value) return;
+    const exists = (field.options ?? []).some((o) => o.toLowerCase() === value.toLowerCase());
+    const final = exists ? (field.options ?? []).find((o) => o.toLowerCase() === value.toLowerCase())! : value;
+    if (!exists) addFieldOption(entity, field.id, value);
+    onCreated(final);
+    setText("");
+  };
+
+  return (
+    <div className="flex gap-1.5">
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        placeholder={placeholder}
+        className="h-8 text-xs"
+      />
+      <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={submit} disabled={!text.trim()}>
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
 }

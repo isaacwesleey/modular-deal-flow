@@ -5,7 +5,19 @@ import { STAGE_COLORS, StageDeleteDialog } from "@/components/crm/stages";
 import { useCrm } from "@/lib/crm/store";
 import { BRAND_COLORS, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
 import { tokenLink } from "@/lib/crm/tokens";
-import { isProtectedField } from "@/lib/crm/roles";
+import {
+  defaultPipelineId,
+  isProtectedField,
+  pipelineStages,
+  pipelines,
+  statusField,
+} from "@/lib/crm/roles";
+import {
+  INTAKE_EXAMPLE,
+  applyLeadIntake,
+  logIntakeError,
+  parseLeadPayload,
+} from "@/lib/crm/intake";
 import { AccessDenied, PageHeader } from "@/components/crm/Layout";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -90,6 +102,7 @@ function AjustesPage() {
           <TabsTrigger value="modulos">Módulos</TabsTrigger>
           <TabsTrigger value="campos">Campos</TabsTrigger>
           <TabsTrigger value="etapas">Etapas</TabsTrigger>
+          <TabsTrigger value="entradas">Entradas</TabsTrigger>
           <TabsTrigger value="marca">Marca</TabsTrigger>
           <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
         </TabsList>
@@ -126,6 +139,11 @@ function AjustesPage() {
 
         <TabsContent value="etapas">
           <StageEditor />
+        </TabsContent>
+
+        <TabsContent value="entradas" className="space-y-6">
+          <LeadRuleEditor />
+          <IntakeEditor />
         </TabsContent>
 
         <TabsContent value="marca">
@@ -477,20 +495,7 @@ function FieldEditor({
               </Select>
             </div>
             {(f.type === "select" || f.type === "multiselect") && (
-              <Input
-                value={(f.options ?? []).join(", ")}
-                onChange={(e) =>
-                  update((list) =>
-                    list.map((x) =>
-                      x.id === f.id
-                        ? { ...x, options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) }
-                        : x,
-                    ),
-                  )
-                }
-                placeholder="Opciones separadas por comas"
-                className="mt-2 h-8 text-xs"
-              />
+              <OptionsManager field={f} isDeal={isDeal} update={update} />
             )}
           </div>
         ))}
@@ -523,6 +528,152 @@ function FieldEditor({
   );
 }
 
+
+/**
+ * Gestión de las opciones de un selector o campo de etiquetas: añadir,
+ * renombrar, reordenar y eliminar avisando de a cuántos registros afecta.
+ * Renombrar y eliminar actualizan también los registros ya guardados.
+ */
+function OptionsManager({
+  field,
+  isDeal,
+  update,
+}: {
+  field: FieldDef;
+  isDeal: boolean;
+  update: (fn: (list: FieldDef[]) => FieldDef[]) => void;
+}) {
+  const { state, setState } = useCrm();
+  const [adding, setAdding] = useState("");
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const options = field.options ?? [];
+
+  const usageOf = (option: string) =>
+    (isDeal ? state.deals : state.contacts).filter((r) => {
+      const v = r.values[field.id];
+      return Array.isArray(v) ? v.includes(option) : v === option;
+    }).length;
+
+  /** Reescribe el valor en todos los registros (renombrar o vaciar). */
+  const rewriteRecords = (from: string, to: string | null) =>
+    setState((s) => {
+      const map = <T extends { values: Record<string, unknown> }>(rows: T[]): T[] =>
+        rows.map((r) => {
+          const v = r.values[field.id];
+          if (Array.isArray(v)) {
+            if (!v.includes(from)) return r;
+            const next = to ? v.map((x) => (x === from ? to : x)) : v.filter((x) => x !== from);
+            return { ...r, values: { ...r.values, [field.id]: next } };
+          }
+          if (v !== from) return r;
+          return { ...r, values: { ...r.values, [field.id]: to ?? "" } };
+        });
+      return isDeal ? { ...s, deals: map(s.deals) } : { ...s, contacts: map(s.contacts) };
+    });
+
+  const rename = (from: string, to: string) => {
+    const value = to.trim();
+    if (!value || value === from || options.includes(value)) return;
+    update((list) =>
+      list.map((x) =>
+        x.id === field.id ? { ...x, options: (x.options ?? []).map((o) => (o === from ? value : o)) } : x,
+      ),
+    );
+    rewriteRecords(from, value);
+  };
+
+  const move = (index: number, dir: -1 | 1) => {
+    const to = index + dir;
+    if (to < 0 || to >= options.length) return;
+    const list = [...options];
+    const [m] = list.splice(index, 1);
+    list.splice(to, 0, m!);
+    update((all) => all.map((x) => (x.id === field.id ? { ...x, options: list } : x)));
+  };
+
+  const removeOption = (option: string) => {
+    update((all) =>
+      all.map((x) => (x.id === field.id ? { ...x, options: (x.options ?? []).filter((o) => o !== option) } : x)),
+    );
+    rewriteRecords(option, null);
+    setConfirm(null);
+    toast.success("Opción eliminada");
+  };
+
+  const add = () => {
+    const value = adding.trim();
+    if (!value || options.some((o) => o.toLowerCase() === value.toLowerCase())) return;
+    update((all) => all.map((x) => (x.id === field.id ? { ...x, options: [...options, value] } : x)));
+    setAdding("");
+  };
+
+  return (
+    <div className="mt-2 space-y-1.5 rounded-lg border bg-muted/30 p-2">
+      {options.map((o, i) => (
+        <div key={o} className="flex items-center gap-1">
+          <Input
+            defaultValue={o}
+            onBlur={(e) => rename(o, e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+            className="h-7 flex-1 text-xs"
+          />
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={i === 0} onClick={() => move(i, -1)}>
+            ↑
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            disabled={i === options.length - 1}
+            onClick={() => move(i, 1)}
+          >
+            ↓
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => setConfirm(o)}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      {!options.length && <p className="text-xs text-muted-foreground">Sin opciones todavía.</p>}
+      <div className="flex gap-1 pt-1">
+        <Input
+          value={adding}
+          onChange={(e) => setAdding(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder="Nueva opción"
+          className="h-7 text-xs"
+        />
+        <Button size="sm" variant="outline" className="h-7 px-2" onClick={add} disabled={!adding.trim()}>
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      <AlertDialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar “{confirm}”</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm && usageOf(confirm) > 0
+                ? `Esta opción está en uso en ${usageOf(confirm)} ${
+                    usageOf(confirm) === 1 ? "registro" : "registros"
+                  }. Se quitará también de ellos.`
+                : "No está en uso en ningún registro."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => confirm && removeOption(confirm)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
 
 function StageEditor() {
   const { state, setState } = useCrm();
@@ -643,6 +794,233 @@ function BrandEditorInner() {
           checked={b.theme === "dark"}
           onCheckedChange={(v) => set({ theme: v ? "dark" : "light" })}
         />
+      </div>
+    </div>
+  );
+}
+/**
+ * Regla de conversión automática: cuando el estado del lead pasa a X,
+ * se crea una oportunidad en la etapa Y del embudo elegido.
+ */
+function LeadRuleEditor() {
+  const { state, setState } = useCrm();
+  const rule = state.leadToDeal ?? { enabled: false, statusValue: "", pipelineId: "", stageId: "" };
+  const status = statusField(state.contactFields);
+  const pipelineId = rule.pipelineId || defaultPipelineId(state);
+  const stages = pipelineStages(state, pipelineId);
+
+  const patch = (p: Partial<typeof rule>) =>
+    setState((s) => ({ ...s, leadToDeal: { ...rule, ...p } }));
+
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="flex items-start gap-4">
+        <div>
+          <h2 className="text-sm font-semibold">Conversión automática a oportunidad</h2>
+          <p className="text-xs text-muted-foreground">
+            Cuando un lead cambia a un estado concreto, se crea su oportunidad sola.
+          </p>
+        </div>
+        <Switch
+          className="ml-auto"
+          checked={rule.enabled}
+          onCheckedChange={(v) => patch({ enabled: v })}
+        />
+      </div>
+
+      {!status && (
+        <p className="mt-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+          Necesitas un campo de contacto con el rol “Estado del lead” para usar esta regla.
+        </p>
+      )}
+
+      {status && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Cuando el estado sea</Label>
+            <Select
+              {...(rule.statusValue ? { value: rule.statusValue } : {})}
+              onValueChange={(v) => patch({ statusValue: v })}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Elige un estado" />
+              </SelectTrigger>
+              <SelectContent>
+                {(status.options ?? []).map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {o}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">En el embudo</Label>
+            <Select value={pipelineId} onValueChange={(v) => patch({ pipelineId: v, stageId: "" })}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines(state).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Crear en la etapa</Label>
+            <Select
+              value={stages.some((s) => s.id === rule.stageId) ? rule.stageId : (stages[0]?.id ?? "")}
+              onValueChange={(v) => patch({ stageId: v })}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {stages.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Entradas por webhook o API.
+ *
+ * ⚠️ SIMULADO: en producción esto es un endpoint de servidor
+ * (por ejemplo `POST /api/public/leads`) que valida la FIRMA de la petición
+ * con la clave de la organización antes de escribir nada. Aquí la clave se
+ * muestra solo para enseñar el patrón: todo ocurre en el navegador.
+ */
+function IntakeEditor() {
+  const { state, setState, tenant } = useCrm();
+  const [payload, setPayload] = useState(INTAKE_EXAMPLE);
+  const intake = state.intake ?? { key: "", logs: [] };
+  const origin = typeof window === "undefined" ? "https://tu-dominio.com" : window.location.origin;
+  const url = `${origin}/api/public/leads/${tenant?.id ?? ""}`;
+
+  const send = () => {
+    const parsed = parseLeadPayload(payload);
+    if (!parsed.ok) {
+      setState((s) => logIntakeError(s, "Simulador", parsed.error, payload));
+      toast.error(parsed.error);
+      return;
+    }
+    let message = "";
+    setState((s) => {
+      const res = applyLeadIntake(s, { ...parsed.input, source: "Webhook" }, {
+        actorName: "Webhook",
+        logIntake: true,
+        payload,
+      });
+      message = res.message;
+      return res.state;
+    });
+    toast.success(message || "Lead creado");
+  };
+
+  const regenerate = () =>
+    setState((s) => ({ ...s, intake: { key: `vk_${uid()}${uid()}`, logs: s.intake?.logs ?? [] } }));
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border bg-card p-4">
+        <h2 className="text-sm font-semibold">Webhook de entrada</h2>
+        <p className="text-xs text-muted-foreground">
+          Manda leads desde tu web, tus anuncios o cualquier herramienta externa.
+        </p>
+        <div className="mt-3 space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">URL</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={url} className="h-9 font-mono text-xs" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(url);
+                  toast.success("URL copiada");
+                }}
+              >
+                Copiar
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Clave de la organización</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={intake.key} className="h-9 font-mono text-xs" />
+              <Button variant="outline" size="sm" onClick={regenerate}>
+                Regenerar
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Se envía en la cabecera <code>X-Ventia-Key</code>. En producción el servidor valida
+              con ella la firma de la petición.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Cuerpo esperado (JSON)</Label>
+            <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs">
+              {INTAKE_EXAMPLE}
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card p-4">
+        <h2 className="text-sm font-semibold">Simulador</h2>
+        <p className="text-xs text-muted-foreground">
+          Pega un JSON y crea el lead de verdad, con su origen y su regla de conversión.
+        </p>
+        <textarea
+          value={payload}
+          onChange={(e) => setPayload(e.target.value)}
+          rows={10}
+          className="mt-3 w-full rounded-lg border bg-background p-3 font-mono text-xs"
+        />
+        <Button className="mt-2" size="sm" onClick={send}>
+          Enviar entrada
+        </Button>
+      </div>
+
+      <div className="rounded-xl border bg-card p-4">
+        <h2 className="text-sm font-semibold">Últimas entradas recibidas</h2>
+        {intake.logs.length ? (
+          <ul className="mt-3 space-y-2">
+            {intake.logs.map((l) => (
+              <li key={l.id} className="rounded-lg border p-2.5 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 ${
+                      l.ok ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {l.ok ? "Correcta" : "Error"}
+                  </span>
+                  <span className="font-medium">{l.source}</span>
+                  <span className="text-muted-foreground">
+                    {new Date(l.at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}
+                  </span>
+                </div>
+                <p className="mt-1 text-muted-foreground">{l.message}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+            Todavía no ha entrado ningún lead por esta vía.
+          </p>
+        )}
       </div>
     </div>
   );

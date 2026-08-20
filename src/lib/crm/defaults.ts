@@ -6,7 +6,10 @@ export const DEFAULT_PASSWORD = "acceso1234";
  * Versión del esquema de datos del tenant. Las migraciones puntuales se aplican
  * una única vez comparando este número con el estado guardado.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
+
+/** Pipeline por defecto al que se migran las etapas y oportunidades existentes. */
+export const DEFAULT_PIPELINE_ID = "pl-ventas";
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -91,13 +94,14 @@ const ATTRIBUTIONS: Attribution[] = [
 ];
 
 export function defaultState(): CrmState {
+  const pipelines = [{ id: DEFAULT_PIPELINE_ID, name: "Ventas" }];
   const stages = [
-    { id: "s1", name: "Nuevo lead", color: "oklch(0.72 0.13 250)" },
-    { id: "s2", name: "Contactado", color: "oklch(0.72 0.13 200)" },
-    { id: "s3", name: "Propuesta enviada", color: "oklch(0.75 0.14 90)" },
-    { id: "s4", name: "Negociación", color: "oklch(0.72 0.15 60)" },
-    { id: "s5", name: "Ganado", color: "oklch(0.68 0.15 155)" },
-    { id: "s6", name: "Perdido", color: "oklch(0.62 0.17 25)" },
+    { id: "s1", name: "Nuevo lead", color: "oklch(0.72 0.13 250)", pipelineId: DEFAULT_PIPELINE_ID },
+    { id: "s2", name: "Contactado", color: "oklch(0.72 0.13 200)", pipelineId: DEFAULT_PIPELINE_ID },
+    { id: "s3", name: "Propuesta enviada", color: "oklch(0.75 0.14 90)", pipelineId: DEFAULT_PIPELINE_ID },
+    { id: "s4", name: "Negociación", color: "oklch(0.72 0.15 60)", pipelineId: DEFAULT_PIPELINE_ID },
+    { id: "s5", name: "Ganado", color: "oklch(0.68 0.15 155)", pipelineId: DEFAULT_PIPELINE_ID },
+    { id: "s6", name: "Perdido", color: "oklch(0.62 0.17 25)", pipelineId: DEFAULT_PIPELINE_ID },
   ];
 
   const contacts = [
@@ -132,6 +136,7 @@ export function defaultState(): CrmState {
     id: d.id,
     createdAt: daysAgo(i * 2),
     stageId: d.s,
+    pipelineId: DEFAULT_PIPELINE_ID,
     contactId: d.c,
     values: {
       titulo: d.t,
@@ -167,6 +172,7 @@ export function defaultState(): CrmState {
       { id: "cierre", label: "Cierre previsto", type: "date", showInQuickView: true },
       { id: "prioridad", label: "Prioridad", type: "select", options: ["Baja", "Media", "Alta"], showInQuickView: false },
     ],
+    pipelines,
     stages,
     contacts,
     deals,
@@ -197,6 +203,13 @@ export function defaultState(): CrmState {
       contactId: c.id,
     })),
     savedViews: [],
+    leadToDeal: {
+      enabled: false,
+      statusValue: "Cualificado",
+      pipelineId: DEFAULT_PIPELINE_ID,
+      stageId: "s1",
+    },
+    intake: { key: `vk_${uid()}${uid()}`, logs: [] },
   };
 }
 /* ---------------- Multi tenant: usuarios y organizaciones precargadas ---------------- */
@@ -212,6 +225,7 @@ export function emptyTenantState(companyName: string, brandIndex = 0): CrmState 
     notes: [],
     events: [],
     savedViews: [],
+    intake: { key: `vk_${uid()}${uid()}`, logs: [] },
   };
 }
 
@@ -230,11 +244,12 @@ export function studioNorteState(): CrmState {
     ...base,
     branding: { companyName: "Studio Norte", logo: "▲", brandHue: BRAND_COLORS[1]!.value, theme: "light" },
     modules: { pipeline: true, tareas: true, notas: false },
+    pipelines: [{ id: "pl-obra", name: "Proyectos" }],
     stages: [
-      { id: "n1", name: "Solicitud", color: "oklch(0.72 0.13 250)" },
-      { id: "n2", name: "Presupuesto", color: "oklch(0.75 0.14 90)" },
-      { id: "n3", name: "En obra", color: "oklch(0.72 0.15 60)" },
-      { id: "n4", name: "Entregado", color: "oklch(0.68 0.15 155)" },
+      { id: "n1", name: "Solicitud", color: "oklch(0.72 0.13 250)", pipelineId: "pl-obra" },
+      { id: "n2", name: "Presupuesto", color: "oklch(0.75 0.14 90)", pipelineId: "pl-obra" },
+      { id: "n3", name: "En obra", color: "oklch(0.72 0.15 60)", pipelineId: "pl-obra" },
+      { id: "n4", name: "Entregado", color: "oklch(0.68 0.15 155)", pipelineId: "pl-obra" },
     ],
     contactFields: [
       { id: "nombre", label: "Cliente", type: "text", core: true, showInQuickView: true, role: "title" },
@@ -256,9 +271,9 @@ export function studioNorteState(): CrmState {
       { id: "sc3", createdAt: daysAgo(11), attribution: { ...ATTRIBUTIONS[3]!, firstSeenAt: daysAgo(12) }, values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", empresa: "Ría Espacios", ciudad: "Bilbao", sector: "Oficinas", fase: "Cliente", responsable: "u-admin" } },
     ],
     deals: [
-      { id: "sd1", createdAt: daysAgo(2), stageId: "n2", contactId: "sc1", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
-      { id: "sd2", createdAt: daysAgo(5), stageId: "n3", contactId: "sc2", values: { titulo: "Escaparate Óptica Zubi", presupuesto: 6400, m2: 35 } },
-      { id: "sd3", createdAt: daysAgo(9), stageId: "n4", contactId: "sc3", values: { titulo: "Salas Coworking Ría", presupuesto: 24000, m2: 260 } },
+      { id: "sd1", createdAt: daysAgo(2), stageId: "n2", pipelineId: "pl-obra", contactId: "sc1", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
+      { id: "sd2", createdAt: daysAgo(5), stageId: "n3", pipelineId: "pl-obra", contactId: "sc2", values: { titulo: "Escaparate Óptica Zubi", presupuesto: 6400, m2: 35 } },
+      { id: "sd3", createdAt: daysAgo(9), stageId: "n4", pipelineId: "pl-obra", contactId: "sc3", values: { titulo: "Salas Coworking Ría", presupuesto: 24000, m2: 260 } },
     ],
     tasks: [
       { id: "st1", title: "Visita técnica Bar Aurora", kind: "reunion", date: iso(0, 12), done: false, linkType: "deal", linkId: "sd1" },
@@ -276,6 +291,8 @@ export function studioNorteState(): CrmState {
       { id: "sev3", at: daysAgo(11), type: "contact.created", actorId: "u-admin", actorName: "Elena Admin", contactId: "sc3" },
     ],
     savedViews: [],
+    leadToDeal: { enabled: false, statusValue: "Visitado", pipelineId: "pl-obra", stageId: "n1" },
+    intake: { key: `vk_${uid()}${uid()}`, logs: [] },
   };
 }
 

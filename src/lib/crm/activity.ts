@@ -16,6 +16,8 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   "deal.deleted": "Oportunidad enviada a la papelera",
   "deal.restored": "Oportunidad restaurada",
   "deal.stage": "Cambio de etapa",
+  "deal.auto": "Oportunidad creada por regla",
+  "lead.intake": "Lead recibido por webhook",
 };
 
 const asText = (v: unknown): string => {

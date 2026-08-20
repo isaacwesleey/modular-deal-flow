@@ -1,15 +1,7 @@
 import { useCrm } from "@/lib/crm/store";
-import { MAIN_TENANT, uid } from "@/lib/crm/defaults";
+import { MAIN_TENANT } from "@/lib/crm/defaults";
 import { getStoredAttribution, syncAttributionConsent } from "@/lib/crm/attribution";
-import {
-  companyField,
-  emailField,
-  ownerField,
-  phoneField,
-  statusField,
-  titleField,
-} from "@/lib/crm/roles";
-import type { Contact, FieldValues } from "@/lib/crm/types";
+import { applyLeadIntake } from "@/lib/crm/intake";
 
 /**
  * Organización que recibe los leads del formulario público de la web.
@@ -27,8 +19,9 @@ export interface PublicLeadInput {
 }
 
 /**
- * Crea un lead real desde la web pública (sin sesión iniciada) en la
- * organización principal, con la atribución capturada en la visita.
+ * Crea un lead real desde la web pública (sin sesión iniciada).
+ * Usa el mismo motor de entrada que el webhook y el alta manual, así que
+ * también aplica la regla de conversión automática a oportunidad.
  * En producción esto sería un POST a la API; aquí escribe en localStorage.
  */
 export function usePublicLead() {
@@ -37,74 +30,33 @@ export function usePublicLead() {
   return (input: PublicLeadInput): { ok: boolean; error?: string } => {
     const tenantId = root.tenants[MAIN_TENANT_ID] ? MAIN_TENANT_ID : Object.keys(root.tenants)[0];
     const tenant = tenantId ? root.tenants[tenantId] : undefined;
-    if (!tenantId || !tenant) return {
+    if (!tenantId || !tenant)
+      return {
         ok: false,
         error:
           "Ahora mismo no podemos recoger tu solicitud. Escríbenos a hola@ventia.app y te respondemos enseguida.",
       };
 
-    const fields = tenant.state.contactFields;
-    const values: FieldValues = {};
-    const set = (id: string | undefined, v: string | undefined) => {
-      if (id && v) values[id] = v;
-    };
-    set(titleField(fields)?.id, input.name);
-    set(emailField(fields)?.id, input.email);
-    set(companyField(fields)?.id, input.company);
-    set(phoneField(fields)?.id, input.phone);
-
-    const status = statusField(fields);
-    if (status?.options?.length) values[status.id] = status.options[0]!;
-    const owner = ownerField(fields);
-    if (owner) values[owner.id] = "";
-
     // Si el visitante rechazó las cookies de marketing, el lead se crea sin origen.
     const attribution = getStoredAttribution() ?? syncAttributionConsent() ?? undefined;
-    const contact: Contact = {
-      id: uid(),
-      createdAt: new Date().toISOString(),
-      values,
-      ...(attribution ? { attribution } : {}),
-    };
-
-    const note = input.message?.trim()
-      ? {
-          id: uid(),
-          createdAt: contact.createdAt,
-          text: `Mensaje desde la web: ${input.message.trim()}`,
-          linkType: "contact" as const,
-          linkId: contact.id,
-        }
-      : null;
 
     setRoot((r) => {
       const t = r.tenants[tenantId];
       if (!t) return r;
-      return {
-        ...r,
-        tenants: {
-          ...r.tenants,
-          [tenantId]: {
-            ...t,
-            state: {
-              ...t.state,
-              contacts: [contact, ...t.state.contacts],
-              ...(note ? { notes: [note, ...t.state.notes] } : {}),
-              events: [
-                {
-                  id: uid(),
-                  at: contact.createdAt,
-                  type: "contact.created" as const,
-                  actorName: "Formulario web",
-                  contactId: contact.id,
-                  text: "Alta automática desde la web de Ventia",
-                },
-                ...t.state.events,
-              ],
-            },
-          },
+      const res = applyLeadIntake(
+        t.state,
+        {
+          name: input.name,
+          email: input.email,
+          ...(input.company ? { company: input.company } : {}),
+          ...(input.phone ? { phone: input.phone } : {}),
+          ...(input.message ? { message: input.message } : {}),
+          source: "Formulario web",
+          ...(attribution ? { attribution } : {}),
         },
-      };
+        { actorName: "Formulario web", logIntake: true },
+      );
+      return { ...r, tenants: { ...r.tenants, [tenantId]: { ...t, state: res.state } } };
     });
 
     return { ok: true };

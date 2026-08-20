@@ -113,6 +113,7 @@ function AdminPage() {
               Crear organización de ejemplo
             </Button>
           )}
+          <ResetPlatformButton />
         </div>
         {!root.tenants[EXAMPLE_TENANT] && (
           <p className="-mt-4 text-xs text-muted-foreground">
@@ -230,6 +231,66 @@ function DeleteTenantButton({ tenant, onConfirm }: { tenant: Tenant; onConfirm: 
               }}
             >
               Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/**
+ * Devuelve la plataforma al estado inicial (una sola organización precargada).
+ * Sirve para salir de un almacenamiento heredado sin borrar datos del navegador
+ * a mano. Pide escribir "RESTABLECER" porque no hay vuelta atrás.
+ */
+function ResetPlatformButton() {
+  const { resetPlatform } = useCrm();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const match = text.trim().toUpperCase() === "RESTABLECER";
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        className="text-destructive hover:text-destructive"
+        onClick={() => {
+          setText("");
+          setOpen(true);
+        }}
+      >
+        Restablecer la plataforma
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restablecer la plataforma</DialogTitle>
+            <DialogDescription>
+              Se borran todas las organizaciones, usuarios y datos, y se vuelve al estado inicial:
+              una sola organización precargada. Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-reset">
+              Escribe <strong>RESTABLECER</strong> para confirmar
+            </Label>
+            <Input id="confirm-reset" value={text} onChange={(e) => setText(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!match}
+              onClick={() => {
+                resetPlatform();
+                setOpen(false);
+                toast.success("Plataforma restablecida");
+              }}
+            >
+              Restablecer
             </Button>
           </DialogFooter>
         </DialogContent>

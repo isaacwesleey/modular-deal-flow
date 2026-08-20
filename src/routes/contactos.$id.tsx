@@ -20,11 +20,16 @@ import {
   companyField,
   contactDeals,
   dealAmount,
+  defaultPipelineId,
   emailField,
+  openContactDeals,
   ownerField,
   phoneField,
+  pipelineName,
+  pipelineStages,
   recordTitle,
   statusField,
+  titleField,
 } from "@/lib/crm/roles";
 import { FieldInput, UserFieldInput } from "@/components/crm/fields";
 import { Button } from "@/components/ui/button";
@@ -33,6 +38,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecordDialog } from "@/components/crm/RecordDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Attribution, FieldValues } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/contactos/$id")({
@@ -64,7 +79,14 @@ function LeadPage() {
   const [noteText, setNoteText] = useState("");
   const [newTask, setNewTask] = useState("");
   const [dealOpen, setDealOpen] = useState(false);
+  const [convertWarn, setConvertWarn] = useState(false);
   const emptyValues = useMemo<FieldValues>(() => ({}), []);
+  // Título prellenado con el nombre del lead al convertir.
+  const prefilledDeal = useMemo<FieldValues>(() => {
+    const dealTitle = titleField(state.dealFields);
+    const name = contact ? recordTitle(state.contactFields, contact.values) : "";
+    return dealTitle && name ? { [dealTitle.id]: name } : {};
+  }, [state.dealFields, state.contactFields, contact]);
 
   const notes = useMemo(
     () => state.notes.filter((n) => n.linkType === "contact" && n.linkId === id),
@@ -143,13 +165,16 @@ function LeadPage() {
 
   const createDeal = (values: FieldValues) => {
     const dealId = uid();
+    const pipelineId = defaultPipelineId(state);
+    const stages = pipelineStages(state, pipelineId);
     setState((s) => ({
       ...s,
       deals: [
         {
           id: dealId,
           createdAt: new Date().toISOString(),
-          stageId: s.stages[0]?.id ?? "",
+          stageId: stages[0]?.id ?? "",
+          pipelineId,
           contactId: contact.id,
           values,
         },
@@ -165,6 +190,15 @@ function LeadPage() {
       },
     ]);
     toast.success("Oportunidad creada y vinculada");
+  };
+
+  /**
+   * Conversión manual: abre el diálogo con el contacto ya vinculado y el
+   * título prellenado. Si el lead ya tiene oportunidades abiertas, avisa antes.
+   */
+  const openConversion = () => {
+    if (openContactDeals(state, contact.id).length) setConvertWarn(true);
+    else setDealOpen(true);
   };
 
   return (
@@ -243,8 +277,8 @@ function LeadPage() {
               )}
             </Button>
             {state.modules.pipeline && (
-              <Button variant="outline" size="sm" onClick={() => setDealOpen(true)}>
-                <KanbanSquare className="mr-1 h-4 w-4" /> Oportunidad
+              <Button size="sm" onClick={openConversion}>
+                <KanbanSquare className="mr-1 h-4 w-4" /> Convertir en oportunidad
               </Button>
             )}
             {state.modules.tareas && (
@@ -452,12 +486,37 @@ function LeadPage() {
       <RecordDialog
         open={dealOpen}
         onOpenChange={setDealOpen}
-        title="Nueva oportunidad"
+        title="Convertir en oportunidad"
         fields={state.dealFields}
-        values={emptyValues}
+        entity="dealFields"
+        values={prefilledDeal}
         recordId={`deal-${contact.id}`}
         onSave={createDeal}
+        extra={
+          <p className="rounded-lg border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+            Quedará vinculada a <strong>{title}</strong> y entrará en la primera etapa de “
+            {pipelineName(state, defaultPipelineId(state))}”.
+          </p>
+        }
       />
+
+      <AlertDialog open={convertWarn} onOpenChange={setConvertWarn}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Este lead ya tiene oportunidades abiertas</AlertDialogTitle>
+            <AlertDialogDescription>
+              {openContactDeals(state, contact.id).length === 1
+                ? "Hay 1 oportunidad abierta para este lead."
+                : `Hay ${openContactDeals(state, contact.id).length} oportunidades abiertas para este lead.`}{" "}
+              ¿Quieres crear otra de todas formas?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setDealOpen(true)}>Crear otra</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
