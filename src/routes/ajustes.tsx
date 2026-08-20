@@ -143,6 +143,27 @@ function FieldEditor({
   const update = (fn: (list: FieldDef[]) => FieldDef[]) =>
     setState((s: CrmState) => ({ ...s, [entity]: fn(s[entity]) }));
 
+  const isDeal = entity === "dealFields";
+
+  /** Un rol es exclusivo: se retira del campo que lo tuviera. */
+  const setRole = (fieldId: string, role: FieldRole | "none") =>
+    update((list) =>
+      list.map((x) => {
+        if (x.id === fieldId) {
+          if (role === "none") {
+            const { role: _omit, ...rest } = x;
+            return rest;
+          }
+          return { ...x, role };
+        }
+        if (role !== "none" && x.role === role) {
+          const { role: _omit, ...rest } = x;
+          return rest;
+        }
+        return x;
+      }),
+    );
+
   const drop = (targetId: string) => {
     if (!dragId || dragId === targetId) return;
     update((list) => {
@@ -208,17 +229,59 @@ function FieldEditor({
               >
                 {f.showInQuickView ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
-              {f.core ? (
+              {f.core && (
                 <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">core</span>
-              ) : (
-                <button
-                  onClick={() => update((list) => list.filter((x) => x.id !== f.id))}
-                  className="text-muted-foreground hover:text-destructive"
-                  aria-label="Borrar campo"
+              )}
+              {isProtectedField(f) ? (
+                <span
+                  className="text-muted-foreground/40"
+                  title={f.core ? "Campo core: no se puede borrar" : "Campo con rol asignado: no se puede borrar"}
                 >
                   <Trash2 className="h-4 w-4" />
-                </button>
+                </span>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="text-muted-foreground hover:text-destructive" aria-label="Borrar campo">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Borrar el campo “{f.label}”?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se perderán los datos guardados en este campo en todos los registros.
+                        Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => update((list) => list.filter((x) => x.id !== f.id))}
+                      >
+                        Borrar campo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
+            </div>
+            <div className="mt-2 flex items-center gap-2 pl-6">
+              <span className="text-[11px] text-muted-foreground">Rol</span>
+              <Select value={f.role ?? "none"} onValueChange={(v) => setRole(f.id, v as FieldRole | "none")}>
+                <SelectTrigger className="h-7 w-44 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin rol</SelectItem>
+                  <SelectItem value="title">Título / nombre</SelectItem>
+                  {isDeal && (
+                    <SelectItem value="amount" disabled={f.type !== "currency" && f.type !== "number"}>
+                      Importe
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             {(f.type === "select" || f.type === "multiselect") && (
               <Input
