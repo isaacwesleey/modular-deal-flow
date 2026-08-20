@@ -1,4 +1,4 @@
-import type { CrmState } from "./types";
+import type { CrmState, RootState, Tenant, User } from "./types";
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
