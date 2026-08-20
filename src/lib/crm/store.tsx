@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { defaultState, emptyTenantState, seedRootState, uid } from "./defaults";
+import { DEFAULT_PASSWORD, defaultState, emptyTenantState, seedRootState, uid } from "./defaults";
 import { brandForeground } from "./contrast";
 import { TRASH_DAYS } from "./roles";
 import type {
@@ -151,7 +151,7 @@ interface Ctx {
 const CrmContext = createContext<Ctx | null>(null);
 
 export function CrmProvider({ children }: { children: ReactNode }) {
-  const [root, setInternal] = useState<RootState>(() => demoRootState());
+  const [root, setInternal] = useState<RootState>(() => seedRootState());
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -194,6 +194,11 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       .filter((t): t is Tenant => Boolean(t));
   }, [user, root.tenants]);
 
+  const tenantUsers = useMemo(() => {
+    if (!tenant) return [];
+    return root.users.filter((u) => u.memberships.some((m) => m.tenantId === tenant.id));
+  }, [root.users, tenant]);
+
   const fallback = useMemo(() => defaultState(), []);
   const state = tenant?.state ?? fallback;
 
@@ -210,6 +215,32 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     });
 
   const reset = () =>
+  /** Historial: siempre sella quién y cuándo, nunca es decorativo. */
+  const logEvents: Ctx["logEvents"] = (entries) => {
+    if (!entries.length) return;
+    setInternal((r) => {
+      const id = r.currentTenantId;
+      const t = id ? r.tenants[id] : null;
+      if (!id || !t) return r;
+      const actor = r.users.find((u) => u.id === r.currentUserId);
+      const now = new Date().toISOString();
+      const events: ActivityEvent[] = entries.map((e) => ({
+        ...e,
+        id: uid(),
+        at: e.at ?? now,
+        ...(actor ? { actorId: actor.id } : {}),
+        actorName: actor?.name ?? "Sistema",
+      }));
+      return {
+        ...r,
+        tenants: {
+          ...r.tenants,
+          [id]: { ...t, state: { ...t.state, events: [...events, ...t.state.events] } },
+        },
+      };
+    });
+  };
+
     setInternal((r) => {
       const id = r.currentTenantId;
       const t = id ? r.tenants[id] : null;
