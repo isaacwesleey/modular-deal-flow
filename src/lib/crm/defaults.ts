@@ -96,7 +96,7 @@ export function defaultState(): CrmState {
     },
     modules: { pipeline: true, tareas: true, notas: true },
     contactFields: [
-      { id: "nombre", label: "Nombre", type: "text", core: true, showInQuickView: true },
+      { id: "nombre", label: "Nombre", type: "text", core: true, showInQuickView: true, role: "title" },
       { id: "email", label: "Email", type: "email", showInQuickView: true },
       { id: "telefono", label: "Teléfono", type: "phone", showInQuickView: true },
       { id: "empresa", label: "Empresa", type: "text", showInQuickView: true },
@@ -104,8 +104,8 @@ export function defaultState(): CrmState {
       { id: "etiquetas", label: "Etiquetas", type: "multiselect", options: ["VIP", "Web", "Newsletter", "Referido"], showInQuickView: false },
     ],
     dealFields: [
-      { id: "titulo", label: "Título", type: "text", core: true, showInQuickView: true },
-      { id: "valor", label: "Valor", type: "currency", showInQuickView: true },
+      { id: "titulo", label: "Título", type: "text", core: true, showInQuickView: true, role: "title" },
+      { id: "valor", label: "Valor", type: "currency", showInQuickView: true, role: "amount" },
       { id: "cliente", label: "Cliente", type: "text", showInQuickView: true },
       { id: "cierre", label: "Cierre previsto", type: "date", showInQuickView: true },
       { id: "prioridad", label: "Prioridad", type: "select", options: ["Baja", "Media", "Alta"], showInQuickView: false },

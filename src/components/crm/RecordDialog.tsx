@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ export function RecordDialog({
   title,
   fields,
   values,
+  recordId,
   onSave,
   onDelete,
   extra,
@@ -26,15 +27,21 @@ export function RecordDialog({
   title: string;
   fields: FieldDef[];
   values: FieldValues;
+  /** id del registro editado (o undefined al crear). Sincroniza el borrador al cambiar. */
+  recordId?: string;
   onSave: (v: FieldValues) => void;
   onDelete?: () => void;
   extra?: React.ReactNode;
 }) {
   const [draft, setDraft] = useState<FieldValues>(values);
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
 
+  // Solo se sincroniza al abrir el diálogo o al cambiar de registro,
+  // nunca en cada render (values puede ser un objeto nuevo cada vez).
   useEffect(() => {
-    if (open) setDraft(values);
-  }, [open, values]);
+    if (open) setDraft({ ...valuesRef.current });
+  }, [open, recordId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { GripVertical, Plus, Trash2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { BRAND_COLORS, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
+import { isProtectedField } from "@/lib/crm/roles";
 import { PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +11,24 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CrmState, FieldDef, FieldType, ModuleKey } from "@/lib/crm/types";
+import type { CrmState, FieldDef, FieldRole, FieldType, ModuleKey, Stage } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/ajustes")({
   head: () => ({
@@ -42,9 +54,26 @@ function AjustesPage() {
         title="Ajustes"
         subtitle="Todo se guarda en tu navegador (localStorage). Sin backend."
         action={
-          <Button variant="outline" onClick={reset}>
-            <RotateCcw className="mr-1 h-4 w-4" /> Restaurar demo
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">
+                <RotateCcw className="mr-1 h-4 w-4" /> Restaurar demo
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Restaurar los datos de demo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se borrarán todos tus contactos, oportunidades, tareas, notas, campos
+                  personalizados y ajustes de marca. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={reset}>Sí, restaurar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         }
       />
 
@@ -114,6 +143,27 @@ function FieldEditor({
   const update = (fn: (list: FieldDef[]) => FieldDef[]) =>
     setState((s: CrmState) => ({ ...s, [entity]: fn(s[entity]) }));
 
+  const isDeal = entity === "dealFields";
+
+  /** Un rol es exclusivo: se retira del campo que lo tuviera. */
+  const setRole = (fieldId: string, role: FieldRole | "none") =>
+    update((list) =>
+      list.map((x) => {
+        if (x.id === fieldId) {
+          if (role === "none") {
+            const { role: _omit, ...rest } = x;
+            return rest;
+          }
+          return { ...x, role };
+        }
+        if (role !== "none" && x.role === role) {
+          const { role: _omit, ...rest } = x;
+          return rest;
+        }
+        return x;
+      }),
+    );
+
   const drop = (targetId: string) => {
     if (!dragId || dragId === targetId) return;
     update((list) => {
@@ -179,17 +229,59 @@ function FieldEditor({
               >
                 {f.showInQuickView ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
-              {f.core ? (
+              {f.core && (
                 <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">core</span>
-              ) : (
-                <button
-                  onClick={() => update((list) => list.filter((x) => x.id !== f.id))}
-                  className="text-muted-foreground hover:text-destructive"
-                  aria-label="Borrar campo"
+              )}
+              {isProtectedField(f) ? (
+                <span
+                  className="text-muted-foreground/40"
+                  title={f.core ? "Campo core: no se puede borrar" : "Campo con rol asignado: no se puede borrar"}
                 >
                   <Trash2 className="h-4 w-4" />
-                </button>
+                </span>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="text-muted-foreground hover:text-destructive" aria-label="Borrar campo">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Borrar el campo “{f.label}”?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se perderán los datos guardados en este campo en todos los registros.
+                        Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => update((list) => list.filter((x) => x.id !== f.id))}
+                      >
+                        Borrar campo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
+            </div>
+            <div className="mt-2 flex items-center gap-2 pl-6">
+              <span className="text-[11px] text-muted-foreground">Rol</span>
+              <Select value={f.role ?? "none"} onValueChange={(v) => setRole(f.id, v as FieldRole | "none")}>
+                <SelectTrigger className="h-7 w-44 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin rol</SelectItem>
+                  <SelectItem value="title">Título / nombre</SelectItem>
+                  {isDeal && (
+                    <SelectItem value="amount" disabled={f.type !== "currency" && f.type !== "number"}>
+                      Importe
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             {(f.type === "select" || f.type === "multiselect") && (
               <Input
@@ -306,19 +398,7 @@ function StageEditor() {
                 />
               ))}
             </div>
-            <button
-              onClick={() =>
-                setState((s) => ({
-                  ...s,
-                  stages: s.stages.filter((x) => x.id !== st.id),
-                  deals: s.deals.filter((d) => d.stageId !== st.id),
-                }))
-              }
-              className="text-muted-foreground hover:text-destructive"
-              aria-label="Borrar etapa"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <DeleteStageButton stage={st} />
           </div>
         ))}
       </div>
@@ -340,6 +420,70 @@ function StageEditor() {
 }
 
 function BrandEditor() {
+  return <BrandEditorInner />;
+}
+
+function DeleteStageButton({ stage }: { stage: Stage }) {
+  const { state, setState } = useCrm();
+  const [open, setOpen] = useState(false);
+  const others = state.stages.filter((s) => s.id !== stage.id);
+  const count = state.deals.filter((d) => d.stageId === stage.id).length;
+  const [target, setTarget] = useState<string>(others[0]?.id ?? "__delete__");
+
+  const confirm = () =>
+    setState((s) => ({
+      ...s,
+      stages: s.stages.filter((x) => x.id !== stage.id),
+      deals:
+        target === "__delete__"
+          ? s.deals.filter((d) => d.stageId !== stage.id)
+          : s.deals.map((d) => (d.stageId === stage.id ? { ...d, stageId: target } : d)),
+    }));
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <button className="text-muted-foreground hover:text-destructive" aria-label="Borrar etapa">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Borrar la etapa “{stage.name}”?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {count === 0
+              ? "Esta etapa no tiene oportunidades."
+              : `Esta etapa tiene ${count} oportunidad${count === 1 ? "" : "es"}. Elige qué hacer con ellas.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {count > 0 && (
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Oportunidades</Label>
+            <Select value={target} onValueChange={setTarget}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {others.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    Mover a “{s.name}”
+                  </SelectItem>
+                ))}
+                <SelectItem value="__delete__">Borrarlas también (irreversible)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={confirm}>Borrar etapa</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function BrandEditorInner() {
   const { state, setState } = useCrm();
   const b = state.branding;
   const set = (patch: Partial<typeof b>) =>

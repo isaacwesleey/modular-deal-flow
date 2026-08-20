@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
+import { recordTitle } from "@/lib/crm/roles";
 import { uid } from "@/lib/crm/defaults";
 import { ModuleOff, PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
@@ -55,11 +56,11 @@ function NotasPage() {
   const label = (t?: string, id?: string) => {
     if (t === "contact") {
       const c = state.contacts.find((x) => x.id === id);
-      return c ? `👤 ${String(c.values[state.contactFields[0]?.id ?? "nombre"] ?? "")}` : "";
+      return c ? `👤 ${recordTitle(state.contactFields, c.values, "Sin nombre")}` : "";
     }
     if (t === "deal") {
       const d = state.deals.find((x) => x.id === id);
-      return d ? `💼 ${String(d.values[state.dealFields[0]?.id ?? "titulo"] ?? "")}` : "";
+      return d ? `💼 ${recordTitle(state.dealFields, d.values)}` : "";
     }
     return "";
   };
@@ -86,13 +87,13 @@ function NotasPage() {
               <SelectItem value="none:">Sin asociar</SelectItem>
               {state.contacts.map((c) => (
                 <SelectItem key={c.id} value={`contact:${c.id}`}>
-                  👤 {String(c.values[state.contactFields[0]?.id ?? "nombre"] ?? "")}
+                  👤 {recordTitle(state.contactFields, c.values, "Sin nombre")}
                 </SelectItem>
               ))}
               {state.modules.pipeline &&
                 state.deals.map((d) => (
                   <SelectItem key={d.id} value={`deal:${d.id}`}>
-                    💼 {String(d.values[state.dealFields[0]?.id ?? "titulo"] ?? "")}
+                    💼 {recordTitle(state.dealFields, d.values)}
                   </SelectItem>
                 ))}
             </SelectContent>

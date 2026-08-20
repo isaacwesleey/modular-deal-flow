@@ -29,6 +29,7 @@ function ContactosPage() {
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Contact | null>(null);
   const [creating, setCreating] = useState(false);
+  const dialogValues = useMemo(() => editing?.values ?? {}, [editing]);
 
   const filtered = useMemo(() => {
     const term = q.toLowerCase().trim();
@@ -117,7 +118,8 @@ function ContactosPage() {
         }}
         title={editing ? "Editar contacto" : "Nuevo contacto"}
         fields={fields}
-        values={editing?.values ?? {}}
+        values={dialogValues}
+        recordId={editing?.id ?? "nuevo"}
         onSave={save}
         {...(editing
           ? {

@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
+import { amountField, sumDeals } from "@/lib/crm/roles";
 import { ModuleOff, PageHeader } from "@/components/crm/Layout";
 import { RecordDialog } from "@/components/crm/RecordDialog";
 import { FieldValueView } from "@/components/crm/fields";
@@ -24,22 +25,38 @@ export const Route = createFileRoute("/pipeline")({
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
+const NO_STAGE = "__sin_etapa__";
+
 function PipelinePage() {
   const { state, setState } = useCrm();
   const [dragId, setDragId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Deal | null>(null);
   const [creatingStage, setCreatingStage] = useState<string | null>(null);
 
+  const fields = state.dealFields;
+  const quick = useMemo(() => fields.filter((f) => f.showInQuickView), [fields]);
+  const amount = amountField(fields);
+  const dialogValues = useMemo(() => editing?.values ?? {}, [editing]);
+
+  const stageIds = useMemo(() => new Set(state.stages.map((s) => s.id)), [state.stages]);
+  const orphans = state.deals.filter((d) => !stageIds.has(d.stageId));
+
   if (!state.modules.pipeline) return <ModuleOff name="Pipeline" />;
 
-  const fields = state.dealFields;
-  const quick = fields.filter((f) => f.showInQuickView);
-
-  const moveDeal = (dealId: string, stageId: string) =>
-    setState((s) => ({
-      ...s,
-      deals: s.deals.map((d) => (d.id === dealId ? { ...d, stageId } : d)),
-    }));
+  /** Mueve un deal a otra etapa y, opcionalmente, lo coloca antes de otra tarjeta. */
+  const moveDeal = (dealId: string, stageId: string, beforeId?: string) =>
+    setState((s) => {
+      if (dealId === beforeId) return s;
+      const list = [...s.deals];
+      const from = list.findIndex((d) => d.id === dealId);
+      if (from < 0) return s;
+      const [moved] = list.splice(from, 1);
+      const next = { ...moved!, stageId };
+      const to = beforeId ? list.findIndex((d) => d.id === beforeId) : -1;
+      if (to < 0) list.push(next);
+      else list.splice(to, 0, next);
+      return { ...s, deals: list };
+    });
 
   const save = (values: FieldValues) => {
     if (editing) {
@@ -55,66 +72,113 @@ function PipelinePage() {
     }
   };
 
+  const columns = [
+    ...state.stages.map((st) => ({
+      id: st.id,
+      name: st.name,
+      color: st.color,
+      deals: state.deals.filter((d) => d.stageId === st.id),
+      canAdd: true,
+    })),
+    ...(orphans.length
+      ? [{ id: NO_STAGE, name: "Sin etapa", color: "oklch(0.6 0.02 260)", deals: orphans, canAdd: false }]
+      : []),
+  ];
+
+  const firstStageId = state.stages[0]?.id;
+
   return (
     <>
       <PageHeader
         title="Pipeline"
-        subtitle="Arrastra las tarjetas entre etapas. Configura las etapas en Ajustes."
+        subtitle="Arrastra las tarjetas entre etapas o reordénalas dentro de una columna."
       />
 
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {state.stages.map((stage) => {
-          const deals = state.deals.filter((d) => d.stageId === stage.id);
-          const total = deals.reduce((a, d) => a + (Number(d.values["valor"]) || 0), 0);
-          return (
-            <div
-              key={stage.id}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => dragId && moveDeal(dragId, stage.id)}
-              className="flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 p-3"
-            >
-              <div className="mb-3 flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: stage.color }} />
-                <h2 className="text-sm font-semibold">{stage.name}</h2>
-                <span className="ml-auto text-xs text-muted-foreground">{eur(total)}</span>
-              </div>
+        {columns.map((col) => (
+          <div
+            key={col.id}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              if (dragId && col.id !== NO_STAGE) moveDeal(dragId, col.id);
+              setDragId(null);
+            }}
+            className="flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 p-3"
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: col.color }} />
+              <h2 className="text-sm font-semibold">{col.name}</h2>
+              {amount && (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {eur(sumDeals(fields, col.deals))}
+                </span>
+              )}
+            </div>
 
-              <div className="flex-1 space-y-2">
-                {deals.map((d) => (
-                  <div
-                    key={d.id}
-                    draggable
-                    onDragStart={() => setDragId(d.id)}
-                    onDragEnd={() => setDragId(null)}
-                    onClick={() => setEditing(d)}
-                    className={`cursor-pointer rounded-lg border-l-4 bg-card p-3 shadow-sm transition hover:shadow-md ${
-                      dragId === d.id ? "opacity-40" : ""
-                    }`}
-                    style={{ borderLeftColor: stage.color }}
+            {col.id === NO_STAGE && (
+              <div className="mb-2 rounded-lg border border-dashed p-2 text-[11px] text-muted-foreground">
+                Estas oportunidades apuntan a una etapa que ya no existe.
+                {firstStageId && (
+                  <button
+                    className="mt-1 block font-medium text-primary underline"
+                    onClick={() =>
+                      setState((s) => ({
+                        ...s,
+                        deals: s.deals.map((d) =>
+                          stageIds.has(d.stageId) ? d : { ...d, stageId: firstStageId },
+                        ),
+                      }))
+                    }
                   >
-                    {quick.map((f, i) => (
-                      <div key={f.id} className={i === 0 ? "text-sm font-medium" : "mt-1 text-xs text-muted-foreground"}>
-                        <FieldValueView field={f} value={d.values[f.id]} />
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                    Mover todas a “{state.stages[0]?.name}”
+                  </button>
+                )}
               </div>
+            )}
 
+            <div className="flex-1 space-y-2">
+              {col.deals.map((d) => (
+                <div
+                  key={d.id}
+                  draggable
+                  onDragStart={() => setDragId(d.id)}
+                  onDragEnd={() => setDragId(null)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.stopPropagation();
+                    if (dragId && col.id !== NO_STAGE) moveDeal(dragId, col.id, d.id);
+                    setDragId(null);
+                  }}
+                  onClick={() => setEditing(d)}
+                  className={`cursor-pointer rounded-lg border-l-4 bg-card p-3 shadow-sm transition hover:shadow-md ${
+                    dragId === d.id ? "opacity-40" : ""
+                  }`}
+                  style={{ borderLeftColor: col.color }}
+                >
+                  {quick.map((f, i) => (
+                    <div key={f.id} className={i === 0 ? "text-sm font-medium" : "mt-1 text-xs text-muted-foreground"}>
+                      <FieldValueView field={f} value={d.values[f.id]} />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {col.canAdd && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="mt-2 justify-start text-muted-foreground"
                 onClick={() => {
                   setEditing(null);
-                  setCreatingStage(stage.id);
+                  setCreatingStage(col.id);
                 }}
               >
                 <Plus className="mr-1 h-4 w-4" /> Añadir
               </Button>
-            </div>
-          );
-        })}
+            )}
+          </div>
+        ))}
         {!state.stages.length && (
           <p className="text-sm text-muted-foreground">Crea etapas desde Ajustes.</p>
         )}
@@ -130,7 +194,8 @@ function PipelinePage() {
         }}
         title={editing ? "Editar oportunidad" : "Nueva oportunidad"}
         fields={fields}
-        values={editing?.values ?? {}}
+        values={dialogValues}
+        recordId={editing?.id ?? `nuevo-${creatingStage ?? ""}`}
         onSave={save}
         {...(editing
           ? { onDelete: () => setState((s) => ({ ...s, deals: s.deals.filter((d) => d.id !== editing.id) })) }
