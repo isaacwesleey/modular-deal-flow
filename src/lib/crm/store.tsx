@@ -62,7 +62,8 @@ function loadRoot(): RootState {
       const parsed = JSON.parse(raw) as RootState;
       const tenants: Record<string, Tenant> = {};
       for (const [id, t] of Object.entries(parsed.tenants ?? {})) {
-        tenants[id] = { ...t, state: migrateTenantState(t.state) };
+        const state = migrateTenantState(t.state);
+        tenants[id] = { ...t, name: state.branding.companyName.trim() || t.name, state };
       }
       return { ...demoRootState(), ...parsed, tenants };
     }
