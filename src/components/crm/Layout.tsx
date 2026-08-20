@@ -140,8 +140,9 @@ export function CrmLayout({ children }: { children: ReactNode }) {
               </SelectTrigger>
               <SelectContent>
                 {myTenants.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
+                  <SelectItem key={t.id} value={t.id} disabled={Boolean(t.suspended) && !isSuperAdmin}>
                     {t.name}
+                    {t.suspended ? " · suspendida" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
