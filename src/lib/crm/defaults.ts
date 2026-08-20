@@ -94,10 +94,10 @@ export function defaultState(): CrmState {
 
   const contacts = [
     { id: "c1", nombre: "Lucía Fernández", email: "lucia@estudiolf.com", telefono: "+34 611 223 344", empresa: "Estudio LF", etiquetas: ["VIP"], estado: "Cliente" },
-    { id: "c2", nombre: "Marc Puig", email: "marc@puigdigital.es", telefono: "+34 622 111 900", empresa: "Puig Digital", etiquetas: ["Web"], estado: "Lead" },
-    { id: "c3", nombre: "Ana Ruiz", email: "ana.ruiz@gmail.com", telefono: "+34 633 555 010", empresa: "Freelance", etiquetas: ["Newsletter", "Web"], estado: "Lead" },
+    { id: "c2", nombre: "Marc Puig", email: "marc@puigdigital.es", telefono: "+34 622 111 900", empresa: "Puig Digital", etiquetas: ["Web"], estado: "Contactado" },
+    { id: "c3", nombre: "Ana Ruiz", email: "ana.ruiz@gmail.com", telefono: "+34 633 555 010", empresa: "Freelance", etiquetas: ["Newsletter", "Web"], estado: "Nuevo" },
     { id: "c4", nombre: "Diego Salas", email: "diego@casasalas.com", telefono: "+34 644 777 121", empresa: "Casa Salas", etiquetas: ["VIP", "Referido"], estado: "Cliente" },
-    { id: "c5", nombre: "Nora Vidal", email: "nora@vidalco.com", telefono: "+34 655 909 300", empresa: "Vidal & Co", etiquetas: [], estado: "Perdido" },
+    { id: "c5", nombre: "Nora Vidal", email: "nora@vidalco.com", telefono: "+34 655 909 300", empresa: "Vidal & Co", etiquetas: [], estado: "Cualificado" },
   ].map((c, i) => ({
     id: c.id,
     createdAt: daysAgo(i * 3 + 1),
