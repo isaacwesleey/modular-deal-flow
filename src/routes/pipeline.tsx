@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trashDaysLeft } from "@/lib/crm/roles";
+import { isEmptyValue } from "@/lib/crm/validation";
 import type { Deal, FieldValues } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/pipeline")({
@@ -57,10 +58,6 @@ export const Route = createFileRoute("/pipeline")({
 
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
-
-function isEmptyValue(v: unknown) {
-  return v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
-}
 
 const NO_STAGE = "__sin_etapa__";
 
@@ -80,6 +77,10 @@ function PipelinePage() {
   const [linkedContact, setLinkedContact] = useState<string | undefined>(undefined);
   const [newPipeline, setNewPipeline] = useState("");
   const [pipelineDialog, setPipelineDialog] = useState(false);
+  const [renamePipeline, setRenamePipeline] = useState(false);
+  const [pipelineName2, setPipelineName2] = useState("");
+  const [deletePipeline, setDeletePipeline] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<string>("");
   const [activePipeline, setActivePipeline] = useState<string | null>(null);
 
   const fields = state.dealFields;
@@ -233,6 +234,38 @@ function PipelinePage() {
     setPipelineDialog(false);
   };
 
+  /** Renombra el embudo activo. */
+  const doRenamePipeline = () => {
+    const name = pipelineName2.trim();
+    if (!name) return;
+    setState((s) => ({
+      ...s,
+      pipelines: allPipelines(s).map((p) => (p.id === pipelineId ? { ...p, name } : p)),
+    }));
+    setRenamePipeline(false);
+  };
+
+  /**
+   * Elimina el embudo activo. Nunca se puede quedar el CRM sin embudos:
+   * las oportunidades y sus etapas se mueven al embudo elegido.
+   */
+  const doDeletePipeline = () => {
+    if (pipelineList.length < 2 || !moveTarget) return;
+    const movedStageIds = new Set(pipelineStages(state, pipelineId).map((s) => s.id));
+    setState((s) => ({
+      ...s,
+      pipelines: allPipelines(s).filter((p) => p.id !== pipelineId),
+      stages: s.stages.map((st) =>
+        movedStageIds.has(st.id) ? { ...st, pipelineId: moveTarget } : st,
+      ),
+      deals: s.deals.map((d) =>
+        movedStageIds.has(d.stageId) ? { ...d, pipelineId: moveTarget } : d,
+      ),
+    }));
+    setActivePipeline(moveTarget);
+    setDeletePipeline(false);
+  };
+
   const restoreDeal = (deal: Deal) => {
     setState((s) => ({
       ...s,
@@ -275,6 +308,38 @@ function PipelinePage() {
               <Button variant="outline" size="sm" onClick={() => setPipelineDialog(true)}>
                 <Plus className="mr-1 h-4 w-4" /> Nuevo embudo
               </Button>
+            )}
+            {canManageSettings && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" aria-label="Opciones del embudo">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setPipelineName2(pipelineList.find((p) => p.id === pipelineId)?.name ?? "");
+                      setRenamePipeline(true);
+                    }}
+                  >
+                    Renombrar embudo
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    disabled={pipelineList.length < 2}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setMoveTarget(pipelineList.find((p) => p.id !== pipelineId)?.id ?? "");
+                      setDeletePipeline(true);
+                    }}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" /> Eliminar embudo
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {trashed.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => setTrashOpen(true)}>
@@ -477,6 +542,61 @@ function PipelinePage() {
           <DialogFooter>
             <Button onClick={addPipeline} disabled={!newPipeline.trim()}>
               Crear embudo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={renamePipeline} onOpenChange={setRenamePipeline}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Renombrar embudo</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={pipelineName2}
+            autoFocus
+            onChange={(e) => setPipelineName2(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && doRenamePipeline()}
+          />
+          <DialogFooter>
+            <Button onClick={doRenamePipeline} disabled={!pipelineName2.trim()}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deletePipeline} onOpenChange={setDeletePipeline}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Eliminar “{pipelineList.find((p) => p.id === pipelineId)?.name}”
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Sus {pipelineStages(state, pipelineId).length} etapas y sus oportunidades pasarán al
+            embudo que elijas. Siempre debe quedar al menos un embudo.
+          </p>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Mover todo a</Label>
+            <Select value={moveTarget} onValueChange={setMoveTarget}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelineList
+                  .filter((p) => p.id !== pipelineId)
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="destructive" onClick={doDeletePipeline} disabled={!moveTarget}>
+              Eliminar embudo
             </Button>
           </DialogFooter>
         </DialogContent>

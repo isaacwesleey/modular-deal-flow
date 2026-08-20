@@ -28,6 +28,7 @@ import {
   trashedContacts,
 } from "@/lib/crm/roles";
 import { downloadCsv, parseCsv, toCsv } from "@/lib/crm/csv";
+import { describeErrors, hasErrors, validateValues } from "@/lib/crm/validation";
 import { PageHeader } from "@/components/crm/Layout";
 import { RecordDialog } from "@/components/crm/RecordDialog";
 import { FieldValueView, formatValue } from "@/components/crm/fields";
@@ -128,6 +129,8 @@ function ContactosPage() {
     rows: FieldValues[];
     existing: number;
     inside: number;
+    /** Filas descartadas por no pasar la validación de los campos. */
+    invalid: { row: number; detail: string }[];
   } | null>(null);
   const [viewDialog, setViewDialog] = useState<{ id?: string; name: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -297,7 +300,15 @@ function ContactosPage() {
         seen.add(mail);
       }
     }
-    setDupes({ rows: parsed, existing, inside });
+    // Validación de campos: las filas que no cumplen se descartan y se avisa.
+    const valid: FieldValues[] = [];
+    const invalid: { row: number; detail: string }[] = [];
+    parsed.forEach((v, i) => {
+      const errors = validateValues(fields, v);
+      if (hasErrors(errors)) invalid.push({ row: i + 2, detail: describeErrors(fields, errors) });
+      else valid.push(v);
+    });
+    setDupes({ rows: valid, existing, inside, invalid });
   };
 
   const runImport = (skipDupes: boolean) => {
@@ -313,8 +324,12 @@ function ContactosPage() {
         return true;
       });
     }
-    list.forEach((v) => contactsApi.create(v));
-    toast.success(`${list.length} contactos importados`);
+    const res = contactsApi.createMany(list);
+    toast.success(
+      res.deals
+        ? `${res.created} contactos importados · ${res.deals} oportunidades creadas por la regla`
+        : `${res.created} contactos importados`,
+    );
     setDupes(null);
   };
 
@@ -703,6 +718,12 @@ function ContactosPage() {
                     .filter(Boolean)
                     .join(" ")
                 : "No se han detectado duplicados por email."}
+              {dupes?.invalid.length
+                ? ` Se descartan ${dupes.invalid.length} filas que no cumplen las validaciones (fila ${dupes.invalid
+                    .slice(0, 3)
+                    .map((i) => i.row)
+                    .join(", ")}${dupes.invalid.length > 3 ? "…" : ""}): ${dupes.invalid[0]!.detail}`
+                : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -42,6 +42,11 @@ export interface LeadInput {
   /** Origen legible: "Formulario web", "Webhook", "Manual"... */
   source?: string;
   attribution?: Attribution;
+  /**
+   * Valores ya montados sobre los campos personalizados (alta manual e
+   * importación de CSV). Mandan sobre los derivados de los roles.
+   */
+  values?: FieldValues;
 }
 
 export interface IntakeResult {
@@ -52,43 +57,113 @@ export interface IntakeResult {
   dealId?: string;
 }
 
-/** Convierte un JSON arbitrario en un LeadInput validado. */
-export function parseLeadPayload(raw: string): { ok: true; input: LeadInput } | { ok: false; error: string } {
+/**
+ * Tamaño máximo del cuerpo aceptado (10 KB).
+ * ⚠️ En producción este límite lo aplica el servidor ANTES de leer el cuerpo,
+ * junto con la validación de firma y un límite de peticiones por minuto.
+ */
+export const INTAKE_MAX_BYTES = 10 * 1024;
+
+/** Nombres alternativos aceptados en el cuerpo (castellano e inglés). */
+const ALIASES: Record<string, string[]> = {
+  name: ["name", "nombre", "fullname", "full_name", "nombre_completo"],
+  email: ["email", "correo", "mail", "e-mail"],
+  company: ["company", "empresa", "organizacion", "organización"],
+  phone: ["phone", "telefono", "teléfono", "tel", "movil", "móvil"],
+  message: ["message", "mensaje", "comentario", "comentarios", "notas"],
+  status: ["status", "estado"],
+  source: ["source", "origen"],
+  referrer: ["referrer", "referer", "referencia"],
+  landingPage: ["landingPage", "landing_page", "pagina", "página", "landing"],
+};
+
+const UTM_ALIASES: Record<string, string[]> = {
+  utmSource: ["utm_source", "utmSource"],
+  utmMedium: ["utm_medium", "utmMedium"],
+  utmCampaign: ["utm_campaign", "utmCampaign"],
+  utmTerm: ["utm_term", "utmTerm"],
+  utmContent: ["utm_content", "utmContent"],
+};
+
+/**
+ * Convierte un JSON arbitrario en un LeadInput validado.
+ * Acepta alias en castellano y utm sueltas (`utm_source`) o anidadas (`utm.source`),
+ * y devuelve la lista de claves que ha ignorado para poder avisar de erratas.
+ */
+export function parseLeadPayload(
+  raw: string,
+): { ok: true; input: LeadInput; ignored: string[] } | { ok: false; error: string } {
+  if (raw.length > INTAKE_MAX_BYTES)
+    return {
+      ok: false,
+      error: `El cuerpo supera el límite de ${Math.round(INTAKE_MAX_BYTES / 1024)} KB.`,
+    };
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(raw) as Record<string, unknown>;
   } catch {
     return { ok: false, error: "El JSON no es válido." };
   }
-  if (!data || typeof data !== "object") return { ok: false, error: "El cuerpo debe ser un objeto JSON." };
-  const str = (k: string) => (typeof data[k] === "string" ? (data[k] as string).trim() : undefined);
-  const name = str("name") ?? str("nombre");
+  if (!data || typeof data !== "object" || Array.isArray(data))
+    return { ok: false, error: "El cuerpo debe ser un objeto JSON." };
+
+  const used = new Set<string>();
+  /** Primer alias presente con valor de texto. */
+  const pickAlias = (names: string[]): string | undefined => {
+    for (const n of names) {
+      const key = Object.keys(data).find((k) => k.toLowerCase() === n.toLowerCase());
+      if (!key) continue;
+      used.add(key);
+      const v = data[key];
+      if (typeof v === "string" && v.trim()) return v.trim();
+      if (typeof v === "number") return String(v);
+    }
+    return undefined;
+  };
+  const get = (field: keyof typeof ALIASES) => pickAlias(ALIASES[field]!);
+
+  const name = get("name");
   if (!name) return { ok: false, error: "Falta el campo obligatorio “name”." };
-  const email = str("email");
+  const email = get("email");
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return { ok: false, error: "El email recibido no es válido." };
-  const utm = (data["utm"] ?? {}) as Record<string, unknown>;
-  const pick = (k: string) => (typeof utm[k] === "string" ? (utm[k] as string) : undefined);
+
+  // utm anidadas (`"utm": { "source": ... }`) o sueltas (`"utm_source": ...`).
+  const utmObj =
+    data["utm"] && typeof data["utm"] === "object" && !Array.isArray(data["utm"])
+      ? (data["utm"] as Record<string, unknown>)
+      : undefined;
+  if (utmObj) used.add(Object.keys(data).find((k) => k.toLowerCase() === "utm")!);
+  const nested = (k: string) =>
+    utmObj && typeof utmObj[k] === "string" && (utmObj[k] as string).trim()
+      ? (utmObj[k] as string).trim()
+      : undefined;
+  const utmValue = (key: keyof typeof UTM_ALIASES, short: string) =>
+    nested(short) ?? pickAlias(UTM_ALIASES[key]!);
+
   const attribution: Attribution = {
-    ...(pick("source") ? { utmSource: pick("source")! } : {}),
-    ...(pick("medium") ? { utmMedium: pick("medium")! } : {}),
-    ...(pick("campaign") ? { utmCampaign: pick("campaign")! } : {}),
-    ...(pick("term") ? { utmTerm: pick("term")! } : {}),
-    ...(pick("content") ? { utmContent: pick("content")! } : {}),
-    ...(str("referrer") ? { referrer: str("referrer")! } : {}),
-    ...(str("landingPage") ? { landingPage: str("landingPage")! } : {}),
+    ...(utmValue("utmSource", "source") ? { utmSource: utmValue("utmSource", "source")! } : {}),
+    ...(utmValue("utmMedium", "medium") ? { utmMedium: utmValue("utmMedium", "medium")! } : {}),
+    ...(utmValue("utmCampaign", "campaign") ? { utmCampaign: utmValue("utmCampaign", "campaign")! } : {}),
+    ...(utmValue("utmTerm", "term") ? { utmTerm: utmValue("utmTerm", "term")! } : {}),
+    ...(utmValue("utmContent", "content") ? { utmContent: utmValue("utmContent", "content")! } : {}),
+    ...(get("referrer") ? { referrer: get("referrer")! } : {}),
+    ...(get("landingPage") ? { landingPage: get("landingPage")! } : {}),
     firstSeenAt: new Date().toISOString(),
   };
+
+  const ignored = Object.keys(data).filter((k) => !used.has(k));
   return {
     ok: true,
+    ignored,
     input: {
       name,
       ...(email ? { email } : {}),
-      ...(str("company") ? { company: str("company")! } : {}),
-      ...(str("phone") ? { phone: str("phone")! } : {}),
-      ...(str("message") ? { message: str("message")! } : {}),
-      ...(str("status") ? { status: str("status")! } : {}),
-      source: str("source") ?? "Webhook",
+      ...(get("company") ? { company: get("company")! } : {}),
+      ...(get("phone") ? { phone: get("phone")! } : {}),
+      ...(get("message") ? { message: get("message")! } : {}),
+      ...(get("status") ? { status: get("status")! } : {}),
+      source: get("source") ?? "Webhook",
       attribution,
     },
   };
@@ -109,7 +184,7 @@ export const INTAKE_EXAMPLE = `{
 /** Valores de contacto a partir de los roles configurados en la organización. */
 function valuesFromInput(state: CrmState, input: LeadInput): FieldValues {
   const fields = state.contactFields;
-  const values: FieldValues = {};
+  const values: FieldValues = { ...(input.values ?? {}) };
   const set = (id: string | undefined, v: string | undefined) => {
     if (id && v) values[id] = v;
   };
@@ -118,9 +193,9 @@ function valuesFromInput(state: CrmState, input: LeadInput): FieldValues {
   set(companyField(fields)?.id, input.company);
   set(phoneField(fields)?.id, input.phone);
   const status = statusField(fields);
-  if (status) values[status.id] = input.status ?? status.options?.[0] ?? "";
+  if (status && !values[status.id]) values[status.id] = input.status ?? status.options?.[0] ?? "";
   const owner = ownerField(fields);
-  if (owner) values[owner.id] = "";
+  if (owner && values[owner.id] === undefined) values[owner.id] = "";
   return values;
 }
 

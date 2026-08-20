@@ -3,7 +3,7 @@ import { uid } from "./defaults";
 import { diffValues } from "./activity";
 import { toast } from "sonner";
 import { ownerField, recordTitle, statusField } from "./roles";
-import { dealFromRule } from "./intake";
+import { applyLeadIntake, dealFromRule } from "./intake";
 import type { Attribution, Contact, FieldValues } from "./types";
 
 /**
@@ -11,7 +11,7 @@ import type { Attribution, Contact, FieldValues } from "./types";
  * Cualquier cambio de lead debe pasar por aquí para que el registro sea real.
  */
 export function useContacts() {
-  const { state, setState, logEvents, root, notify, tenantUsers } = useCrm();
+  const { state, setState, logEvents, root, notify, tenantUsers, user } = useCrm();
   const fields = state.contactFields;
 
   const userName = (id: unknown) =>
@@ -44,122 +44,149 @@ export function useContacts() {
     return userName(text);
   };
 
-  const create = (values: FieldValues, attribution?: Attribution): Contact => {
-    const contact: Contact = {
-      id: uid(),
-      createdAt: new Date().toISOString(),
-      values,
-      ...(attribution ? { attribution } : {}),
-    };
-    setState((s) => ({ ...s, contacts: [contact, ...s.contacts] }));
-    logEvents([{ type: "contact.created", contactId: contact.id }]);
-    return contact;
-  };
-
-  const update = (id: string, values: FieldValues) => {
-    const before = state.contacts.find((c) => c.id === id)?.values ?? {};
-    const of = ownerField(fields);
-    if (of && values[of.id] && values[of.id] !== before[of.id])
-      notifyOwner(id, String(values[of.id]));
-    setState((s) => ({
-      ...s,
-      contacts: s.contacts.map((c) => (c.id === id ? { ...c, values } : c)),
-    }));
-    const changes = diffValues(fields, before, values);
-    logEvents(
-      changes.map((ch) => {
-        const f = fields.find((x) => x.label === ch.label);
-        return {
-          type: ch.type,
-          contactId: id,
-          ...(ch.label ? { label: ch.label } : {}),
-          ...(pretty(f?.id, ch.from) ? { from: pretty(f?.id, ch.from)! } : {}),
-          ...(pretty(f?.id, ch.to) ? { to: pretty(f?.id, ch.to)! } : {}),
-        };
-      }),
+  /**
+   * Alta de contacto. Pasa SIEMPRE por el motor de entrada de leads
+   * (`applyLeadIntake`), igual que el formulario público y el webhook, así que
+   * el alta manual también registra su origen y dispara la regla de conversión.
+   */
+  const create = (values: FieldValues, attribution?: Attribution, source = "Manual"): Contact => {
+    const res = applyLeadIntake(
+      state,
+      {
+        name: recordTitle(fields, values, "Sin nombre"),
+        values,
+        source,
+        ...(attribution ? { attribution } : {}),
+      },
+      { actorName: user?.name ?? source },
+    );
+    setState(() => res.state);
+    if (res.dealId) toast.success("Oportunidad creada por la regla automática");
+    return (
+      res.state.contacts.find((c) => c.id === res.contactId) ?? {
+        id: uid(),
+        createdAt: new Date().toISOString(),
+        values,
+      }
     );
   };
 
-  const setStatus = (ids: string[], value: string) => {
-    const f = statusField(fields);
-    if (!f) return;
-    const before = new Map(ids.map((id) => [id, String(state.contacts.find((c) => c.id === id)?.values[f.id] ?? "—")]));
-    const created: { contactId: string; dealId: string; stage: string; label: string }[] = [];
-    setState((s) => {
-      const contacts = s.contacts.map((c) =>
-        ids.includes(c.id) ? { ...c, values: { ...c.values, [f.id]: value } } : c,
+  /**
+   * Alta en lote (importación CSV): encadena el motor de entrada sobre un
+   * único estado para no perder filas por escrituras solapadas.
+   */
+  const createMany = (rows: FieldValues[], source = "Importación CSV") => {
+    let next = state;
+    let deals = 0;
+    for (const values of rows) {
+      const res = applyLeadIntake(
+        next,
+        { name: recordTitle(fields, values, "Sin nombre"), values, source },
+        { actorName: user?.name ?? source },
       );
-      let next = { ...s, contacts };
-      // Regla configurable: al pasar al estado elegido se crea la oportunidad.
-      for (const id of ids) {
-        if (before.get(id) === value) continue;
-        const contact = contacts.find((c) => c.id === id);
-        if (!contact) continue;
-        const deal = dealFromRule(next, contact, value);
+      next = res.state;
+      if (res.dealId) deals += 1;
+    }
+    setState(() => next);
+    return { created: rows.length, deals };
+  };
+
+  /**
+   * Punto ÚNICO de escritura de valores de contacto.
+   *
+   * Registra el historial, avisa al nuevo propietario y evalúa la regla de
+   * conversión automática venga el cambio de donde venga (ficha, listado,
+   * acciones en lote o edición en línea).
+   */
+  const writeValues = (ids: string[], next: (contact: Contact) => FieldValues) => {
+    const sf = statusField(fields);
+    const of = ownerField(fields);
+    const targets = state.contacts.filter((c) => ids.includes(c.id));
+    if (!targets.length) return;
+
+    const changes = targets.map((c) => ({ contact: c, before: c.values, after: next(c) }));
+
+    // Regla configurable: al entrar en el estado elegido se crea la oportunidad.
+    const created: { contactId: string; deal: ReturnType<typeof dealFromRule>; label: string }[] = [];
+    if (sf) {
+      let scratch = state;
+      for (const ch of changes) {
+        const before = String(ch.before[sf.id] ?? "");
+        const after = String(ch.after[sf.id] ?? "");
+        if (!after || after === before) continue;
+        const contact = { ...ch.contact, values: ch.after };
+        const deal = dealFromRule(scratch, contact, after);
         if (!deal) continue;
-        next = { ...next, deals: [deal, ...next.deals] };
+        scratch = { ...scratch, deals: [deal, ...scratch.deals] };
         created.push({
-          contactId: id,
-          dealId: deal.id,
-          stage: next.stages.find((st) => st.id === deal.stageId)?.name ?? "",
-          label: recordTitle(next.contactFields, contact.values),
+          contactId: contact.id,
+          deal,
+          label: recordTitle(fields, ch.after),
         });
       }
-      return next;
-    });
+    }
+
+    const byId = new Map(changes.map((ch) => [ch.contact.id, ch.after]));
+    setState((s) => ({
+      ...s,
+      contacts: s.contacts.map((c) => (byId.has(c.id) ? { ...c, values: byId.get(c.id)! } : c)),
+      deals: created.length ? [...created.map((c) => c.deal!), ...s.deals] : s.deals,
+    }));
+
+    // Historial de cada campo tocado.
     logEvents(
-      ids
-        .filter((id) => before.get(id) !== value)
-        .map((id) => ({
-          type: "contact.status" as const,
-          contactId: id,
-          label: f.label,
-          from: before.get(id) || "—",
-          to: value,
-        })),
+      changes.flatMap((ch) =>
+        diffValues(fields, ch.before, ch.after).map((d) => {
+          const f = fields.find((x) => x.label === d.label);
+          return {
+            type: d.type,
+            contactId: ch.contact.id,
+            ...(d.label ? { label: d.label } : {}),
+            ...(pretty(f?.id, d.from) ? { from: pretty(f?.id, d.from)! } : {}),
+            ...(pretty(f?.id, d.to) ? { to: pretty(f?.id, d.to)! } : {}),
+          };
+        }),
+      ),
     );
+
+    // Aviso al nuevo propietario.
+    if (of) {
+      for (const ch of changes) {
+        const owner = String(ch.after[of.id] ?? "");
+        if (owner && owner !== String(ch.before[of.id] ?? "")) notifyOwner(ch.contact.id, owner);
+      }
+    }
+
     if (created.length) {
       logEvents(
         created.map((c) => ({
           type: "deal.auto" as const,
           contactId: c.contactId,
-          dealId: c.dealId,
+          dealId: c.deal!.id,
           label: c.label,
-          to: c.stage,
+          to: state.stages.find((st) => st.id === c.deal!.stageId)?.name ?? "",
         })),
       );
       toast.success(
         created.length === 1
-          ? `Oportunidad creada en “${created[0]!.stage}”`
+          ? `Oportunidad creada en “${state.stages.find((st) => st.id === created[0]!.deal!.stageId)?.name ?? ""}”`
           : `${created.length} oportunidades creadas por la regla`,
       );
     }
   };
 
+  const update = (id: string, values: FieldValues) => writeValues([id], () => values);
+
+  const setStatus = (ids: string[], value: string) => {
+    const f = statusField(fields);
+    if (!f) return;
+    writeValues(ids, (c) => ({ ...c.values, [f.id]: value }));
+  };
+
   const setOwner = (ids: string[], userId: string) => {
     const f = ownerField(fields);
     if (!f) return;
-    const before = new Map(ids.map((id) => [id, userName(state.contacts.find((c) => c.id === id)?.values[f.id])]));
-    setState((s) => ({
-      ...s,
-      contacts: s.contacts.map((c) =>
-        ids.includes(c.id) ? { ...c, values: { ...c.values, [f.id]: userId } } : c,
-      ),
-    }));
-    logEvents(
-      ids
-        .filter((id) => before.get(id) !== userName(userId))
-        .map((id) => ({
-          type: "contact.owner" as const,
-          contactId: id,
-          label: f.label,
-          from: before.get(id) || "Sin asignar",
-          to: userName(userId),
-        })),
-    );
-    ids
-      .filter((id) => before.get(id) !== userName(userId))
-      .forEach((id) => notifyOwner(id, userId));
+    writeValues(ids, (c) => ({ ...c.values, [f.id]: userId }));
   };
 
   /** Envía a la papelera (reversible). */
@@ -237,6 +264,7 @@ export function useContacts() {
 
   return {
     create,
+    createMany,
     update,
     setStatus,
     setOwner,
