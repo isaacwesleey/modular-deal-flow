@@ -214,10 +214,41 @@ interface Ctx {
     name: string;
     email: string;
     password: string;
-  }) => { ok: boolean; error?: string };
+  }) => { ok: boolean; error?: string; token?: string };
   switchTenant: (tenantId: string) => void;
   exitSupport: () => void;
   enterSupport: (tenantId: string) => void;
+
+  /* ---- Cuenta: tokens simulados (ver aviso en tokens.ts) ---- */
+  tokens: AuthToken[];
+  requestPasswordReset: (email: string) => { ok: boolean; error?: string; token?: string };
+  resetPassword: (token: string, password: string) => { ok: boolean; error?: string };
+  requestVerification: (userId?: string) => { ok: boolean; error?: string; token?: string };
+  verifyEmail: (token: string) => { ok: boolean; error?: string };
+  createInvite: (input: { email: string; role: TenantRole }) => {
+    ok: boolean;
+    error?: string;
+    token?: string;
+  };
+  revokeInvite: (token: string) => void;
+  acceptInvite: (
+    token: string,
+    input: { name: string; password: string },
+  ) => { ok: boolean; error?: string };
+  pendingInvites: AuthToken[];
+  changePassword: (current: string, next: string) => { ok: boolean; error?: string };
+  updateProfile: (patch: Partial<Pick<User, "name" | "email">>) => { ok: boolean; error?: string };
+  updatePrefs: (patch: Partial<UserPrefs>) => void;
+
+  /* ---- Notificaciones ---- */
+  notifications: AppNotification[];
+  notify: (
+    entries: Array<
+      Omit<AppNotification, "id" | "at" | "tenantId" | "read"> & { tenantId?: string }
+    >,
+  ) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
 }
 
 const CrmContext = createContext<Ctx | null>(null);
