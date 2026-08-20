@@ -110,7 +110,7 @@ function AdminPage() {
                       )}
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                      {members.length} usuarios · {t.state.contacts.length} contactos ·{" "}
+                      {members.length} usuarios · {t.state.contacts.filter((c) => !c.deletedAt).length} contactos ·{" "}
                       {t.state.deals.length} oportunidades · {t.state.tasks.length} tareas ·{" "}
                       {t.state.notes.length} notas
                     </p>
