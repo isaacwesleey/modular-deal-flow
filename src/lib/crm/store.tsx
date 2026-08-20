@@ -8,16 +8,21 @@ import {
 } from "react";
 import {
   DEFAULT_PASSWORD,
-  DEFAULT_PIPELINE_ID,
   SCHEMA_VERSION,
   defaultState,
   emptyTenantState,
   seedRootState,
   uid,
 } from "./defaults";
+import {
+  MAX_EVENTS,
+  ROOT_KEY,
+  dropLegacyKeys,
+  loadRootFrom,
+} from "./migrate";
+import { writeTenantState } from "./permissions";
 import { brandForeground } from "./contrast";
 import { syncAttributionConsent } from "./attribution";
-import { TRASH_DAYS } from "./roles";
 import { makeToken, tokenStatus, TOKEN_MESSAGES } from "./tokens";
 import type {
   ActivityEvent,
@@ -34,11 +39,6 @@ import type {
   UserPrefs,
 } from "./types";
 
-const ROOT_KEY = "ventia-root-v1";
-/** Claves de versiones anteriores de la plantilla; se migran una sola vez. */
-const LEGACY_ROOT_KEYS = ["crm-remix-root-v2"];
-const LEGACY_KEY = "crm-remix-state-v1";
-
 /**
  * ⚠️ AUTENTICACIÓN SIMULADA — SOLO PARA LA DEMO/PLANTILLA.
  * Los usuarios y sus contraseñas se guardan EN TEXTO PLANO en localStorage:
@@ -50,224 +50,10 @@ const LEGACY_KEY = "crm-remix-state-v1";
  * hashing de contraseñas, sesiones firmadas y RLS/permisos en el backend.
  */
 
-/** Tope de eventos guardados por organización (evita reventar la cuota de localStorage). */
-export const MAX_EVENTS = 500;
-
 /** Reexport para el resto de la app: la fuente de verdad vive en defaults.ts. */
-export { SCHEMA_VERSION };
+export { SCHEMA_VERSION, MAX_EVENTS };
 
-/** Asegura que existan los roles de campo en estados guardados antes de esta versión. */
-function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
-  let list = fields;
-  if (list.length && !list.some((f) => f.role === "title")) {
-    list = list.map((f, i) => (i === 0 ? { ...f, role: "title" as const } : f));
-  }
-  if (withAmount && !list.some((f) => f.role === "amount")) {
-    const candidate = list.find((f) => f.type === "currency" || f.type === "number");
-    if (candidate) list = list.map((f) => (f.id === candidate.id ? { ...f, role: "amount" as const } : f));
-  }
-  if (!withAmount) {
-    // Roles de contacto: email, teléfono y empresa por defecto según el tipo.
-    const assign = (role: "email" | "phone" | "company", pick: (f: FieldDef) => boolean) => {
-      if (list.some((f) => f.role === role)) return;
-      const candidate = list.find((f) => !f.role && pick(f));
-      if (candidate) list = list.map((f) => (f.id === candidate.id ? { ...f, role } : f));
-    };
-    assign("email", (f) => f.type === "email");
-    assign("phone", (f) => f.type === "phone");
-    assign("company", (f) => f.type === "text");
-  }
-  return list;
-}
-
-/**
- * Migración puntual (v1 → v2): en algunas organizaciones el rol `company` cayó
- * sobre un campo que no era la empresa (p. ej. "Ciudad"). Se libera ese campo y
- * se crea uno de empresa propio para que la cabecera de la ficha muestre lo
- * correcto.
- *
- * ⚠️ Solo se ejecuta una vez, al subir de versión de esquema. A partir de ahí
- * el rol `company` es decisión del usuario: puede llamar a ese campo "Cuenta",
- * "Cliente" o "Razón social" y nadie se lo va a cambiar en el siguiente
- * arranque.
- */
-function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
-  const wrong = fields.find(
-    (f) => f.role === "company" && !/empresa|compañ|company|negocio/i.test(f.label),
-  );
-  if (!wrong) return fields;
-  const cleaned: FieldDef[] = fields.map((f) => {
-    if (f.id !== wrong.id) return f;
-    const { role: _drop, ...rest } = f;
-    return rest;
-  });
-  const existing = cleaned.find((f) => /empresa|compañ|company/i.test(f.label));
-  if (existing) return cleaned.map((f) => (f.id === existing.id ? { ...f, role: "company" as const } : f));
-  const idx = cleaned.findIndex((f) => f.id === wrong.id);
-  const empresa: FieldDef = {
-    id: "empresa",
-    label: "Empresa",
-    type: "text",
-    showInQuickView: true,
-    role: "company",
-  };
-  if (cleaned.some((f) => f.id === "empresa")) return cleaned;
-  return [...cleaned.slice(0, idx), empresa, ...cleaned.slice(idx)];
-}
-
-function migrateTenantState(s: CrmState): CrmState {
-  const cutoff = Date.now() - TRASH_DAYS * 86400000;
-  const version = s.schemaVersion ?? 1;
-  const withRoles = ensureRoles(s.contactFields ?? [], false);
-  const contactFields = version < 2 ? fixCompanyRole(withRoles) : withRoles;
-  const contacts = (s.contacts ?? []).filter(
-    (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
-  );
-  // Las oportunidades tienen la misma papelera con purga automática que los contactos.
-  const purgedDeals = (s.deals ?? []).filter(
-    (d) => !d.deletedAt || new Date(d.deletedAt).getTime() > cutoff,
-  );
-  const titleFieldId = contactFields.find((f) => f.role === "title")?.id;
-  /**
-   * Migración: los deals antiguos no tenían relación real con el contacto.
-   * Se enlazan una única vez por coincidencia de texto y a partir de ahí
-   * la relación vive en `contactId` (nunca se vuelve a adivinar).
-   */
-  const byTitle = new Map<string, string>();
-  if (titleFieldId) {
-    for (const c of contacts) {
-      const t = String(c.values[titleFieldId] ?? "").trim().toLowerCase();
-      if (t && !byTitle.has(t)) byTitle.set(t, c.id);
-    }
-  }
-  const deals = purgedDeals.map((d) => {
-    if (d.contactId) return d;
-    const match = Object.values(d.values).find(
-      (v) => typeof v === "string" && byTitle.has(v.trim().toLowerCase()),
-    );
-    return match ? { ...d, contactId: byTitle.get(String(match).trim().toLowerCase())! } : d;
-  });
-  /**
-   * Migración a varios embudos: lo que había pasa a un pipeline por defecto
-   * llamado "Ventas" sin perder nada (etapas, oportunidades ni orden).
-   */
-  const pipelines = s.pipelines?.length ? s.pipelines : [{ id: DEFAULT_PIPELINE_ID, name: "Ventas" }];
-  const firstPipeline = pipelines[0]!.id;
-  const stages = (s.stages ?? []).map((st) =>
-    st.pipelineId ? st : { ...st, pipelineId: firstPipeline },
-  );
-  const stageById = new Map(stages.map((st) => [st.id, st]));
-  const dealsWithPipeline = deals.map((d) =>
-    d.pipelineId ? d : { ...d, pipelineId: stageById.get(d.stageId)?.pipelineId ?? firstPipeline },
-  );
-  return {
-    ...defaultState(),
-    ...s,
-    schemaVersion: SCHEMA_VERSION,
-    contactFields,
-    dealFields: ensureRoles(s.dealFields ?? [], true),
-    events: (s.events ?? []).slice(0, MAX_EVENTS),
-    savedViews: s.savedViews ?? [],
-    pipelines,
-    stages,
-    deals: dealsWithPipeline,
-    intake: s.intake ?? { key: `vk_${uid()}${uid()}`, logs: [] },
-    // Purga automática de la papelera pasado el plazo de retención.
-    contacts,
-  };
-}
-
-/** Migración: el estado v1 (un solo CRM) se convierte en el primer tenant. */
-/**
- * Claves de CrmState que forman la CONFIGURACIÓN de la organización: solo un
- * administrador puede escribirlas (ver comentario en `setState`).
- */
-const SETTINGS_KEYS = ["branding", "modules", "contactFields", "dealFields", "stages"] as const;
-
-function touchesSettings(before: CrmState, after: CrmState): boolean {
-  return SETTINGS_KEYS.some((k) => before[k] !== after[k]);
-}
-
-/** ¿El usuario activo puede escribir la configuración de la organización? */
-function canWriteSettings(r: RootState): boolean {
-  const u = r.users.find((x) => x.id === r.currentUserId);
-  if (!u) return false;
-  if (u.superAdmin) return true;
-  return u.memberships.some((m) => m.tenantId === r.currentTenantId && m.role === "admin");
-}
-
-/** Borra las claves de versiones anteriores una vez migradas con éxito. */
-function dropLegacyKeys() {
-  try {
-    for (const k of [...LEGACY_ROOT_KEYS, LEGACY_KEY]) localStorage.removeItem(k);
-  } catch {
-    /* ignore */
-  }
-}
-
-function loadRoot(): RootState {
-  try {
-    // Lee la clave actual y, si no existe, recupera la de versiones previas
-    // para no perder los datos de quien ya venía usando la plantilla.
-    const current = localStorage.getItem(ROOT_KEY);
-    const raw = current ?? LEGACY_ROOT_KEYS.map((k) => localStorage.getItem(k)).find(Boolean) ?? null;
-    if (raw) {
-      const parsed = JSON.parse(raw) as RootState;
-      const tenants: Record<string, Tenant> = {};
-      for (const [id, t] of Object.entries(parsed.tenants ?? {})) {
-        const state = migrateTenantState(t.state);
-        tenants[id] = { ...t, name: state.branding.companyName.trim() || t.name, state };
-      }
-      const next = { ...seedRootState(), ...parsed, tenants };
-      // Migración completada: las claves antiguas ya no aportan nada y ocupan
-      // sitio en un almacenamiento limitado, así que se eliminan.
-      try {
-        localStorage.setItem(ROOT_KEY, JSON.stringify(next));
-        dropLegacyKeys();
-      } catch {
-        /* si no cabe, se conserva la clave antigua como respaldo */
-      }
-      return next;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  const root = seedRootState();
-  try {
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) {
-      const state = migrateTenantState(JSON.parse(legacy) as CrmState);
-      const id = "legacy";
-      const tenant: Tenant = {
-        id,
-        name: state.branding.companyName || "Mi organización",
-        createdAt: new Date().toISOString(),
-        state,
-      };
-      const owner: User = {
-        id: uid(),
-        name: "Propietario",
-        email: "propietario@miempresa.com",
-        password: DEFAULT_PASSWORD,
-        memberships: [{ tenantId: id, role: "admin" }],
-      };
-      root.tenants = { [id]: tenant, ...root.tenants };
-      root.users = [...root.users, owner];
-      root.currentUserId = owner.id;
-      root.currentTenantId = id;
-      try {
-        localStorage.setItem(ROOT_KEY, JSON.stringify(root));
-        dropLegacyKeys();
-      } catch {
-        /* si no cabe, se conserva la clave antigua como respaldo */
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-  return root;
-}
+const loadRoot = () => loadRootFrom(localStorage);
 
 interface Ctx {
   /** Estado del tenant activo (o uno vacío si no hay tenant). */
@@ -407,7 +193,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   /** Vacía papeleras e historial antiguo de todas las organizaciones. */
   const freeUpSpace = () => {
     // Restos de versiones anteriores de la plantilla: ocupan espacio y ya no se usan.
-    dropLegacyKeys();
+    dropLegacyKeys(localStorage);
     setInternal((r) => {
       const tenants = Object.fromEntries(
         Object.entries(r.tenants).map(([id, t]) => [
@@ -462,33 +248,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const state = tenant?.state ?? fallback;
 
   const setState = (updater: (s: CrmState) => CrmState) =>
-    setInternal((r) => {
-      const id = r.currentTenantId;
-      const t = id ? r.tenants[id] : null;
-      if (!id || !t) return r;
-      const next = updater(t.state);
-      /**
-       * Permisos en la capa de datos, no solo en la interfaz: la configuración
-       * de la organización (marca, módulos, campos y etapas) solo la puede
-       * escribir un administrador (o el super admin en modo soporte). Da igual
-       * desde dónde venga la llamada: si no hay permiso, el cambio se descarta.
-       *
-       * ⚠️ En producción esto NO es una garantía: cualquiera puede editar el
-       * estado del navegador. La misma regla tiene que estar respaldada por
-       * permisos en el servidor (RLS / políticas de backend); la comprobación
-       * de cliente solo evita errores de la propia interfaz.
-       */
-      if (!canWriteSettings(r) && touchesSettings(t.state, next)) {
-        if (typeof console !== "undefined") {
-          console.warn("[crm] Cambio de configuración rechazado: se requiere rol de administrador.");
-        }
-        return r;
-      }
-      // Fuente de verdad única: el nombre de la organización vive en
-      // branding.companyName y se propaga a tenant.name (panel del super admin).
-      const name = next.branding.companyName.trim() || t.name;
-      return { ...r, tenants: { ...r.tenants, [id]: { ...t, name, state: next } } };
-    });
+    setInternal((r) => writeTenantState(r, updater));
 
   /** Historial: siempre sella quién y cuándo, nunca es decorativo. */
   const logEvents: Ctx["logEvents"] = (entries) => {

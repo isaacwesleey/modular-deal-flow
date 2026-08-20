@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, MoreHorizontal, ChevronLeft, ChevronRight, Trash2, RotateCcw } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { trashDaysLeft } from "@/lib/crm/roles";
 import { isEmptyValue } from "@/lib/crm/validation";
+import { useUndo } from "@/lib/crm/useUndo";
 import type { Deal, FieldValues } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/pipeline")({
@@ -69,6 +70,18 @@ function applyContact(deal: Deal, contactId: string | undefined): Deal {
 
 function PipelinePage() {
   const { state, setState, logEvents, canManageSettings } = useCrm();
+  const { offerDeal } = useUndo();
+  /** Mensaje para lectores de pantalla al mover tarjetas con el teclado. */
+  const [announce, setAnnounce] = useState("");
+  /** Tarjeta que debe recuperar el foco tras moverse. */
+  const [focusDeal, setFocusDeal] = useState<string | null>(null);
+
+  // Tras mover una tarjeta con el teclado, el foco vuelve a ella.
+  useEffect(() => {
+    if (!focusDeal) return;
+    document.getElementById(`deal-card-${focusDeal}`)?.focus();
+    setFocusDeal(null);
+  }, [focusDeal]);
   const [trashOpen, setTrashOpen] = useState(false);
   const [newStage, setNewStage] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
@@ -119,6 +132,12 @@ function PipelinePage() {
   /** Mueve un deal a otra etapa y, opcionalmente, lo coloca antes de otra tarjeta. */
   const moveDeal = (dealId: string, stageId: string, beforeId?: string) => {
     const deal = state.deals.find((d) => d.id === dealId);
+    // Deshacer: basta con la tarjeta movida y la posición que ocupaba.
+    if (deal) {
+      const index = state.deals.findIndex((d) => d.id === dealId);
+      const stageName = state.stages.find((st) => st.id === deal.stageId)?.name ?? "Sin etapa";
+      offerDeal(`“${recordTitle(fields, deal.values)}” movida desde ${stageName}`, deal, index);
+    }
     // El cambio de etapa queda registrado en el historial (y en el del contacto vinculado).
     if (deal && deal.stageId !== stageId) {
       const stageName = (id: string) =>
@@ -146,6 +165,55 @@ function PipelinePage() {
       else list.splice(to, 0, next);
       return { ...s, deals: list };
     });
+  };
+
+  /**
+   * Alternativa por teclado al arrastrar y soltar (el DnD nativo no es
+   * accesible): con la tarjeta enfocada, Ctrl/Alt + flechas la mueven entre
+   * etapas y dentro de la etapa, y el cambio se anuncia en la región aria-live.
+   */
+  const onCardKeyDown = (
+    e: React.KeyboardEvent,
+    deal: Deal,
+    colId: string,
+    colDeals: Deal[],
+  ) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setEditing(deal);
+      setLinkedContact(deal.contactId);
+      return;
+    }
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
+    const movable = columns.filter((c) => c.id !== NO_STAGE);
+    const colIndex = movable.findIndex((c) => c.id === colId);
+    const index = colDeals.findIndex((d) => d.id === deal.id);
+    const title = recordTitle(fields, deal.values);
+
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      const target = movable[colIndex + (e.key === "ArrowRight" ? 1 : -1)];
+      if (!target) return;
+      e.preventDefault();
+      moveDeal(deal.id, target.id);
+      setFocusDeal(deal.id);
+      setAnnounce(`${title} movida a la etapa ${target.name}.`);
+      return;
+    }
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      if (colId === NO_STAGE) return;
+      const up = e.key === "ArrowUp";
+      if (up && index <= 0) return;
+      if (!up && index >= colDeals.length - 1) return;
+      e.preventDefault();
+      const beforeId = up ? colDeals[index - 1]?.id : colDeals[index + 2]?.id;
+      moveDeal(deal.id, colId, beforeId);
+      setFocusDeal(deal.id);
+      setAnnounce(
+        `${title} en la posición ${up ? index : index + 2} de ${colDeals.length} en ${
+          movable[colIndex]?.name ?? ""
+        }.`,
+      );
+    }
   };
 
   const save = (values: FieldValues) => {
@@ -350,6 +418,9 @@ function PipelinePage() {
         }
       />
 
+      <p aria-live="polite" className="sr-only">
+        {announce}
+      </p>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {columns.map((col) => (
           <div
@@ -359,6 +430,8 @@ function PipelinePage() {
               if (dragId && col.id !== NO_STAGE) moveDeal(dragId, col.id);
               setDragId(null);
             }}
+            role="group"
+            aria-label={`Etapa ${col.name}`}
             className="flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 p-3"
           >
             <div className="mb-3 flex items-center gap-2">
@@ -399,6 +472,13 @@ function PipelinePage() {
               {col.deals.map((d) => (
                 <div
                   key={d.id}
+                  id={`deal-card-${d.id}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${recordTitle(fields, d.values)}. Etapa ${col.name}, ${
+                    col.deals.indexOf(d) + 1
+                  } de ${col.deals.length}. Pulsa Intro para abrir; Control o Alt con las flechas para moverla.`}
+                  onKeyDown={(e) => onCardKeyDown(e, d, col.id, col.deals)}
                   draggable
                   onDragStart={() => setDragId(d.id)}
                   onDragEnd={() => setDragId(null)}
@@ -412,7 +492,7 @@ function PipelinePage() {
                     setEditing(d);
                     setLinkedContact(d.contactId);
                   }}
-                  className={`cursor-pointer rounded-lg border-l-4 bg-card p-3 shadow-sm transition hover:shadow-md ${
+                  className={`cursor-pointer rounded-lg border-l-4 bg-card p-3 shadow-sm transition hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                     dragId === d.id ? "opacity-40" : ""
                   }`}
                   style={{ borderLeftColor: col.color }}

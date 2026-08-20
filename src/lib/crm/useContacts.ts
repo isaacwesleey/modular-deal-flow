@@ -4,6 +4,7 @@ import { diffValues } from "./activity";
 import { toast } from "sonner";
 import { ownerField, recordTitle, statusField } from "./roles";
 import { applyLeadIntake, dealFromRule } from "./intake";
+import { useUndo } from "./useUndo";
 import type { Attribution, Contact, FieldValues } from "./types";
 
 /**
@@ -12,6 +13,7 @@ import type { Attribution, Contact, FieldValues } from "./types";
  */
 export function useContacts() {
   const { state, setState, logEvents, root, notify, tenantUsers, user } = useCrm();
+  const { offerContacts } = useUndo();
   const fields = state.contactFields;
 
   const userName = (id: unknown) =>
@@ -98,7 +100,12 @@ export function useContacts() {
    * conversión automática venga el cambio de donde venga (ficha, listado,
    * acciones en lote o edición en línea).
    */
-  const writeValues = (ids: string[], next: (contact: Contact) => FieldValues) => {
+  const writeValues = (
+    ids: string[],
+    next: (contact: Contact) => FieldValues,
+    /** Si se indica, se ofrece deshacer durante unos segundos. */
+    undoLabel?: string,
+  ) => {
     const sf = statusField(fields);
     const of = ownerField(fields);
     const targets = state.contacts.filter((c) => ids.includes(c.id));
@@ -125,6 +132,9 @@ export function useContacts() {
         });
       }
     }
+
+    // Deshacer: se guarda solo la foto previa de los contactos tocados.
+    if (undoLabel) offerContacts(undoLabel, targets);
 
     const byId = new Map(changes.map((ch) => [ch.contact.id, ch.after]));
     setState((s) => ({
@@ -180,18 +190,32 @@ export function useContacts() {
   const setStatus = (ids: string[], value: string) => {
     const f = statusField(fields);
     if (!f) return;
-    writeValues(ids, (c) => ({ ...c.values, [f.id]: value }));
+    writeValues(
+      ids,
+      (c) => ({ ...c.values, [f.id]: value }),
+      ids.length > 1 ? `${ids.length} contactos pasados a “${value}”` : `Estado cambiado a “${value}”`,
+    );
   };
 
   const setOwner = (ids: string[], userId: string) => {
     const f = ownerField(fields);
     if (!f) return;
-    writeValues(ids, (c) => ({ ...c.values, [f.id]: userId }));
+    writeValues(
+      ids,
+      (c) => ({ ...c.values, [f.id]: userId }),
+      ids.length > 1
+        ? `${ids.length} contactos asignados a ${userName(userId)}`
+        : `Contacto asignado a ${userName(userId)}`,
+    );
   };
 
   /** Envía a la papelera (reversible). */
   const remove = (ids: string[]) => {
     const at = new Date().toISOString();
+    offerContacts(
+      ids.length > 1 ? `${ids.length} contactos enviados a la papelera` : "Contacto enviado a la papelera",
+      state.contacts.filter((c) => ids.includes(c.id)),
+    );
     setState((s) => ({
       ...s,
       contacts: s.contacts.map((c) => (ids.includes(c.id) ? { ...c, deletedAt: at } : c)),
