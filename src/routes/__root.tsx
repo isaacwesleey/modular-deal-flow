@@ -139,12 +139,13 @@ function RootComponent() {
 
 /** Rutas protegidas: sin sesión, todo redirige al login. */
 function AuthGate() {
-  const { hydrated, user, tenant, isSuperAdmin } = useCrm();
+  const { hydrated, user, tenant, isSuperAdmin, myTenants, switchTenant, logout } = useCrm();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
 
   const isAuthRoute = pathname === "/auth";
   const isAdminRoute = pathname === "/admin";
+  const suspended = Boolean(tenant?.suspended) && !isSuperAdmin;
 
   useEffect(() => {
     if (!hydrated) return;
@@ -158,6 +159,37 @@ function AuthGate() {
   if (!user) return null;
   if (isAdminRoute) return <Outlet />;
   if (!tenant) return null;
+  if (suspended) {
+    const alternatives = myTenants.filter((t) => !t.suspended && t.id !== tenant.id);
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
+        <div className="max-w-md rounded-xl border bg-background p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold tracking-tight">Organización suspendida</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            El acceso a <strong>{tenant.name}</strong> está suspendido por el administrador de la
+            plataforma. Contacta con el soporte del SaaS para reactivarla.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {alternatives.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => switchTenant(t.id)}
+                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Ir a {t.name}
+              </button>
+            ))}
+            <button
+              onClick={logout}
+              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <CrmLayout>
