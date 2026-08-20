@@ -50,7 +50,7 @@ import {
 export function useNavItems() {
   const { state } = useCrm();
   const items = [
-    { to: "/", label: "Inicio", icon: LayoutDashboard, always: true },
+    { to: "/inicio", label: "Inicio", icon: LayoutDashboard, always: true },
     { to: "/contactos", label: "Contactos", icon: Users, always: true },
     { to: "/pipeline", label: "Pipeline", icon: KanbanSquare, key: "pipeline" as const },
     { to: "/tareas", label: "Tareas", icon: CheckSquare, key: "tareas" as const },
@@ -347,7 +347,7 @@ export function AccessDenied({ message }: { message?: string }) {
         {message ?? "No tienes permisos para ver esta sección. Habla con el administrador de tu organización."}
       </p>
       <Button asChild className="mt-4">
-        <Link to="/">Volver al inicio</Link>
+        <Link to="/inicio">Volver al inicio</Link>
       </Button>
     </div>
   );

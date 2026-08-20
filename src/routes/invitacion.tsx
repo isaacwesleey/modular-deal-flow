@@ -13,9 +13,9 @@ export const Route = createFileRoute("/invitacion")({
   validateSearch: z.object({ token: z.string().optional() }),
   head: () => ({
     meta: [
-      { title: "Unirse a la organización — CRM Remix" },
+      { title: "Unirse a la organización — Ventia" },
       { name: "description", content: "Acepta la invitación de tu equipo y empieza a trabajar en su CRM." },
-      { property: "og:title", content: "Unirse a la organización — CRM Remix" },
+      { property: "og:title", content: "Unirse a la organización — Ventia" },
       { property: "og:description", content: "Acepta la invitación de tu equipo y empieza a trabajar en su CRM." },
     ],
   }),
@@ -54,7 +54,7 @@ function InvitacionPage() {
       return;
     }
     toast.success(`Ya formas parte de ${orgName}`);
-    navigate({ to: "/", replace: true });
+    navigate({ to: "/inicio", replace: true });
   };
 
   return (

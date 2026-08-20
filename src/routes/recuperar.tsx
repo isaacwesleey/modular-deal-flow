@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/recuperar")({
   head: () => ({
     meta: [
-      { title: "Recuperar contraseña — CRM Remix" },
+      { title: "Recuperar contraseña — Ventia" },
       { name: "description", content: "Recibe un enlace para crear una contraseña nueva y recuperar el acceso a tu organización." },
-      { property: "og:title", content: "Recuperar contraseña — CRM Remix" },
+      { property: "og:title", content: "Recuperar contraseña — Ventia" },
       { property: "og:description", content: "Recibe un enlace para crear una contraseña nueva y recuperar el acceso a tu organización." },
     ],
   }),

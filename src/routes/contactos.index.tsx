@@ -69,9 +69,9 @@ import type { Contact, FieldValues, SavedView } from "@/lib/crm/types";
 export const Route = createFileRoute("/contactos/")({
   head: () => ({
     meta: [
-      { title: "Contactos — CRM Remix" },
+      { title: "Contactos — Ventia" },
       { name: "description", content: "Busca, filtra, importa y organiza todos tus leads." },
-      { property: "og:title", content: "Contactos — CRM Remix" },
+      { property: "og:title", content: "Contactos — Ventia" },
       { property: "og:description", content: "Busca, filtra, importa y organiza todos tus leads." },
     ],
   }),

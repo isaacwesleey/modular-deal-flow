@@ -15,9 +15,9 @@ import type { Deal, FieldValues } from "@/lib/crm/types";
 export const Route = createFileRoute("/pipeline")({
   head: () => ({
     meta: [
-      { title: "Pipeline — CRM Remix" },
+      { title: "Pipeline — Ventia" },
       { name: "description", content: "Kanban de oportunidades con etapas y campos editables." },
-      { property: "og:title", content: "Pipeline — CRM Remix" },
+      { property: "og:title", content: "Pipeline — Ventia" },
       { property: "og:description", content: "Kanban de oportunidades con etapas y campos editables." },
     ],
   }),

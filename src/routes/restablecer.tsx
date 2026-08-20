@@ -13,9 +13,9 @@ export const Route = createFileRoute("/restablecer")({
   validateSearch: z.object({ token: z.string().optional() }),
   head: () => ({
     meta: [
-      { title: "Nueva contraseña — CRM Remix" },
+      { title: "Nueva contraseña — Ventia" },
       { name: "description", content: "Crea una contraseña nueva para volver a entrar en tu organización." },
-      { property: "og:title", content: "Nueva contraseña — CRM Remix" },
+      { property: "og:title", content: "Nueva contraseña — Ventia" },
       { property: "og:description", content: "Crea una contraseña nueva para volver a entrar en tu organización." },
     ],
   }),

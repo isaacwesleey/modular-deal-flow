@@ -22,9 +22,9 @@ import {
 export const Route = createFileRoute("/perfil")({
   head: () => ({
     meta: [
-      { title: "Mi cuenta — CRM Remix" },
+      { title: "Mi cuenta — Ventia" },
       { name: "description", content: "Gestiona tus datos, tu contraseña y tus preferencias de trabajo en el CRM." },
-      { property: "og:title", content: "Mi cuenta — CRM Remix" },
+      { property: "og:title", content: "Mi cuenta — Ventia" },
       { property: "og:description", content: "Gestiona tus datos, tu contraseña y tus preferencias de trabajo en el CRM." },
     ],
   }),

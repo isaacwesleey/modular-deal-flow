@@ -35,9 +35,9 @@ import type { CrmState, FieldDef, FieldRole, FieldType, ModuleKey, Stage } from 
 export const Route = createFileRoute("/ajustes")({
   head: () => ({
     meta: [
-      { title: "Ajustes — CRM Remix" },
+      { title: "Ajustes — Ventia" },
       { name: "description", content: "Activa módulos, edita campos personalizados, etapas y tu marca." },
-      { property: "og:title", content: "Ajustes — CRM Remix" },
+      { property: "og:title", content: "Ajustes — Ventia" },
       { property: "og:description", content: "Activa módulos, edita campos personalizados, etapas y tu marca." },
     ],
   }),

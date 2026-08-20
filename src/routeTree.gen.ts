@@ -13,16 +13,22 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as InicioRouteImport } from './routes/inicio'
 import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as NotasRouteImport } from './routes/notas'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PipelineRouteImport } from './routes/pipeline'
+import { Route as PreciosRouteImport } from './routes/precios'
 import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RestablecerRouteImport } from './routes/restablecer'
 import { Route as TareasRouteImport } from './routes/tareas'
 import { Route as VerificarRouteImport } from './routes/verificar'
 import { Route as ContactosIndexRouteImport } from './routes/contactos.index'
 import { Route as ContactosIdRouteImport } from './routes/contactos.$id'
+import { Route as LegalAvisoLegalRouteImport } from './routes/legal.aviso-legal'
+import { Route as LegalCookiesRouteImport } from './routes/legal.cookies'
+import { Route as LegalPrivacidadRouteImport } from './routes/legal.privacidad'
+import { Route as LegalTerminosRouteImport } from './routes/legal.terminos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -44,6 +50,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InicioRoute = InicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InvitacionRoute = InvitacionRouteImport.update({
   id: '/invitacion',
   path: '/invitacion',
@@ -62,6 +73,11 @@ const PerfilRoute = PerfilRouteImport.update({
 const PipelineRoute = PipelineRouteImport.update({
   id: '/pipeline',
   path: '/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreciosRoute = PreciosRouteImport.update({
+  id: '/precios',
+  path: '/precios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecuperarRoute = RecuperarRouteImport.update({
@@ -94,21 +110,47 @@ const ContactosIdRoute = ContactosIdRouteImport.update({
   path: '/contactos/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalAvisoLegalRoute = LegalAvisoLegalRouteImport.update({
+  id: '/legal/aviso-legal',
+  path: '/legal/aviso-legal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalCookiesRoute = LegalCookiesRouteImport.update({
+  id: '/legal/cookies',
+  path: '/legal/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacidadRoute = LegalPrivacidadRouteImport.update({
+  id: '/legal/privacidad',
+  path: '/legal/privacidad',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTerminosRoute = LegalTerminosRouteImport.update({
+  id: '/legal/terminos',
+  path: '/legal/terminos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/inicio': typeof InicioRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
   '/perfil': typeof PerfilRoute
   '/pipeline': typeof PipelineRoute
+  '/precios': typeof PreciosRoute
   '/recuperar': typeof RecuperarRoute
   '/restablecer': typeof RestablecerRoute
   '/tareas': typeof TareasRoute
   '/verificar': typeof VerificarRoute
   '/contactos/$id': typeof ContactosIdRoute
+  '/legal/aviso-legal': typeof LegalAvisoLegalRoute
+  '/legal/cookies': typeof LegalCookiesRoute
+  '/legal/privacidad': typeof LegalPrivacidadRoute
+  '/legal/terminos': typeof LegalTerminosRoute
   '/contactos/': typeof ContactosIndexRoute
 }
 export interface FileRoutesByTo {
@@ -116,15 +158,21 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/inicio': typeof InicioRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
   '/perfil': typeof PerfilRoute
   '/pipeline': typeof PipelineRoute
+  '/precios': typeof PreciosRoute
   '/recuperar': typeof RecuperarRoute
   '/restablecer': typeof RestablecerRoute
   '/tareas': typeof TareasRoute
   '/verificar': typeof VerificarRoute
   '/contactos/$id': typeof ContactosIdRoute
+  '/legal/aviso-legal': typeof LegalAvisoLegalRoute
+  '/legal/cookies': typeof LegalCookiesRoute
+  '/legal/privacidad': typeof LegalPrivacidadRoute
+  '/legal/terminos': typeof LegalTerminosRoute
   '/contactos': typeof ContactosIndexRoute
 }
 export interface FileRoutesById {
@@ -133,15 +181,21 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/inicio': typeof InicioRoute
   '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
   '/perfil': typeof PerfilRoute
   '/pipeline': typeof PipelineRoute
+  '/precios': typeof PreciosRoute
   '/recuperar': typeof RecuperarRoute
   '/restablecer': typeof RestablecerRoute
   '/tareas': typeof TareasRoute
   '/verificar': typeof VerificarRoute
   '/contactos/$id': typeof ContactosIdRoute
+  '/legal/aviso-legal': typeof LegalAvisoLegalRoute
+  '/legal/cookies': typeof LegalCookiesRoute
+  '/legal/privacidad': typeof LegalPrivacidadRoute
+  '/legal/terminos': typeof LegalTerminosRoute
   '/contactos/': typeof ContactosIndexRoute
 }
 export interface FileRouteTypes {
@@ -151,15 +205,21 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/inicio'
     | '/invitacion'
     | '/notas'
     | '/perfil'
     | '/pipeline'
+    | '/precios'
     | '/recuperar'
     | '/restablecer'
     | '/tareas'
     | '/verificar'
     | '/contactos/$id'
+    | '/legal/aviso-legal'
+    | '/legal/cookies'
+    | '/legal/privacidad'
+    | '/legal/terminos'
     | '/contactos/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -167,15 +227,21 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/inicio'
     | '/invitacion'
     | '/notas'
     | '/perfil'
     | '/pipeline'
+    | '/precios'
     | '/recuperar'
     | '/restablecer'
     | '/tareas'
     | '/verificar'
     | '/contactos/$id'
+    | '/legal/aviso-legal'
+    | '/legal/cookies'
+    | '/legal/privacidad'
+    | '/legal/terminos'
     | '/contactos'
   id:
     | '__root__'
@@ -183,15 +249,21 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/inicio'
     | '/invitacion'
     | '/notas'
     | '/perfil'
     | '/pipeline'
+    | '/precios'
     | '/recuperar'
     | '/restablecer'
     | '/tareas'
     | '/verificar'
     | '/contactos/$id'
+    | '/legal/aviso-legal'
+    | '/legal/cookies'
+    | '/legal/privacidad'
+    | '/legal/terminos'
     | '/contactos/'
   fileRoutesById: FileRoutesById
 }
@@ -200,15 +272,21 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AjustesRoute: typeof AjustesRoute
   AuthRoute: typeof AuthRoute
+  InicioRoute: typeof InicioRoute
   InvitacionRoute: typeof InvitacionRoute
   NotasRoute: typeof NotasRoute
   PerfilRoute: typeof PerfilRoute
   PipelineRoute: typeof PipelineRoute
+  PreciosRoute: typeof PreciosRoute
   RecuperarRoute: typeof RecuperarRoute
   RestablecerRoute: typeof RestablecerRoute
   TareasRoute: typeof TareasRoute
   VerificarRoute: typeof VerificarRoute
   ContactosIdRoute: typeof ContactosIdRoute
+  LegalAvisoLegalRoute: typeof LegalAvisoLegalRoute
+  LegalCookiesRoute: typeof LegalCookiesRoute
+  LegalPrivacidadRoute: typeof LegalPrivacidadRoute
+  LegalTerminosRoute: typeof LegalTerminosRoute
   ContactosIndexRoute: typeof ContactosIndexRoute
 }
 
@@ -242,6 +320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inicio': {
+      id: '/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof InicioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/invitacion': {
       id: '/invitacion'
       path: '/invitacion'
@@ -268,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/pipeline'
       fullPath: '/pipeline'
       preLoaderRoute: typeof PipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/precios': {
+      id: '/precios'
+      path: '/precios'
+      fullPath: '/precios'
+      preLoaderRoute: typeof PreciosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recuperar': {
@@ -312,6 +404,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactosIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/aviso-legal': {
+      id: '/legal/aviso-legal'
+      path: '/legal/aviso-legal'
+      fullPath: '/legal/aviso-legal'
+      preLoaderRoute: typeof LegalAvisoLegalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/cookies': {
+      id: '/legal/cookies'
+      path: '/legal/cookies'
+      fullPath: '/legal/cookies'
+      preLoaderRoute: typeof LegalCookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacidad': {
+      id: '/legal/privacidad'
+      path: '/legal/privacidad'
+      fullPath: '/legal/privacidad'
+      preLoaderRoute: typeof LegalPrivacidadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terminos': {
+      id: '/legal/terminos'
+      path: '/legal/terminos'
+      fullPath: '/legal/terminos'
+      preLoaderRoute: typeof LegalTerminosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -320,15 +440,21 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AjustesRoute: AjustesRoute,
   AuthRoute: AuthRoute,
+  InicioRoute: InicioRoute,
   InvitacionRoute: InvitacionRoute,
   NotasRoute: NotasRoute,
   PerfilRoute: PerfilRoute,
   PipelineRoute: PipelineRoute,
+  PreciosRoute: PreciosRoute,
   RecuperarRoute: RecuperarRoute,
   RestablecerRoute: RestablecerRoute,
   TareasRoute: TareasRoute,
   VerificarRoute: VerificarRoute,
   ContactosIdRoute: ContactosIdRoute,
+  LegalAvisoLegalRoute: LegalAvisoLegalRoute,
+  LegalCookiesRoute: LegalCookiesRoute,
+  LegalPrivacidadRoute: LegalPrivacidadRoute,
+  LegalTerminosRoute: LegalTerminosRoute,
   ContactosIndexRoute: ContactosIndexRoute,
 }
 export const routeTree = rootRouteImport

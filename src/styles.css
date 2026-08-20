@@ -150,3 +150,100 @@
   padding-top: 0.3rem;
   padding-bottom: 0.3rem;
 }
+
+/* ---------------------------------------------------------------------------
+ * Identidad de producto: Ventia.
+ * OJO: estos tokens son la marca del PRODUCTO (landing, precios, legales) y
+ * son independientes de --brand, que es la marca configurable de cada
+ * organización dentro de la app. No los mezcles.
+ * ------------------------------------------------------------------------ */
+@theme inline {
+  --color-ventia: var(--ventia);
+  --color-ventia-deep: var(--ventia-deep);
+  --color-ventia-ink: var(--ventia-ink);
+  --color-ventia-ink-soft: var(--ventia-ink-soft);
+  --color-ventia-accent: var(--ventia-accent);
+  --color-ventia-mist: var(--ventia-mist);
+  --color-ventia-line: var(--ventia-line);
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --ventia: oklch(0.68 0.14 178);
+  --ventia-deep: oklch(0.46 0.11 205);
+  --ventia-ink: oklch(0.23 0.045 250);
+  --ventia-ink-soft: oklch(0.32 0.04 250);
+  --ventia-accent: oklch(0.81 0.16 78);
+  --ventia-mist: oklch(0.97 0.015 190);
+  --ventia-line: oklch(0.9 0.02 220);
+}
+
+/* La landing mantiene su propia identidad aunque la app esté en modo oscuro. */
+.ventia-site {
+  color-scheme: light;
+  background-color: oklch(1 0 0);
+  color: var(--ventia-ink);
+  font-family: var(--font-sans);
+}
+
+.ventia-site h1,
+.ventia-site h2,
+.ventia-site h3,
+.ventia-site .display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.ventia-gradient-text {
+  background-image: linear-gradient(100deg, var(--ventia-deep), var(--ventia));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ventia-hero-bg {
+  background:
+    radial-gradient(60rem 32rem at 78% -12%, color-mix(in oklab, var(--ventia) 26%, transparent), transparent 65%),
+    radial-gradient(48rem 28rem at 4% 6%, color-mix(in oklab, var(--ventia-accent) 20%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--ventia-mist), oklch(1 0 0));
+}
+
+.ventia-grid-bg {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--ventia-line) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--ventia-line) 70%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Animación sutil de entrada al hacer scroll. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+@keyframes ventia-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.ventia-float {
+  animation: ventia-float 7s ease-in-out infinite;
+}

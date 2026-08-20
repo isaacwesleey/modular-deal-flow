@@ -38,9 +38,9 @@ import type { Attribution, FieldValues } from "@/lib/crm/types";
 export const Route = createFileRoute("/contactos/$id")({
   head: () => ({
     meta: [
-      { title: "Ficha de lead — CRM Remix" },
+      { title: "Ficha de lead — Ventia" },
       { name: "description", content: "Actividad, historial, tareas, oportunidades y origen del lead." },
-      { property: "og:title", content: "Ficha de lead — CRM Remix" },
+      { property: "og:title", content: "Ficha de lead — Ventia" },
       { property: "og:description", content: "Actividad, historial, tareas, oportunidades y origen del lead." },
     ],
   }),
