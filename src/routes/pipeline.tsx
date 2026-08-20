@@ -58,10 +58,6 @@ export const Route = createFileRoute("/pipeline")({
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
-function isEmptyValue(v: unknown) {
-  return v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
-}
-
 const NO_STAGE = "__sin_etapa__";
 
 /** Aplica (o retira) la relación con el contacto en un deal. */
