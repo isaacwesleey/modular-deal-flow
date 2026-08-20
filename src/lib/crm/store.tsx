@@ -113,8 +113,6 @@ function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
 }
 
 function migrateTenantState(s: CrmState): CrmState {
-  const cutoff2 = 0;
-  void cutoff2;
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
   const version = s.schemaVersion ?? 1;
   const withRoles = ensureRoles(s.contactFields ?? [], false);
@@ -157,6 +155,24 @@ function migrateTenantState(s: CrmState): CrmState {
 }
 
 /** Migración: el estado v1 (un solo CRM) se convierte en el primer tenant. */
+/**
+ * Claves de CrmState que forman la CONFIGURACIÓN de la organización: solo un
+ * administrador puede escribirlas (ver comentario en `setState`).
+ */
+const SETTINGS_KEYS = ["branding", "modules", "contactFields", "dealFields", "stages"] as const;
+
+function touchesSettings(before: CrmState, after: CrmState): boolean {
+  return SETTINGS_KEYS.some((k) => before[k] !== after[k]);
+}
+
+/** ¿El usuario activo puede escribir la configuración de la organización? */
+function canWriteSettings(r: RootState): boolean {
+  const u = r.users.find((x) => x.id === r.currentUserId);
+  if (!u) return false;
+  if (u.superAdmin) return true;
+  return u.memberships.some((m) => m.tenantId === r.currentTenantId && m.role === "admin");
+}
+
 function loadRoot(): RootState {
   try {
     const raw = localStorage.getItem(ROOT_KEY);
