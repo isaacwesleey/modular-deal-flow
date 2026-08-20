@@ -27,7 +27,7 @@ const DEMOS = [
 ];
 
 function AuthPage() {
-  const { login, register, loginAs, user, isSuperAdmin, hydrated } = useCrm();
+  const { login, register, loginAs, user, tenant, isSuperAdmin, hydrated } = useCrm();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -38,8 +38,10 @@ function AuthPage() {
   const [rPass, setRPass] = useState("");
 
   useEffect(() => {
-    if (hydrated && user) navigate({ to: isSuperAdmin ? "/admin" : "/", replace: true });
-  }, [hydrated, user, isSuperAdmin, navigate]);
+    if (!hydrated || !user) return;
+    if (isSuperAdmin) navigate({ to: "/admin", replace: true });
+    else if (tenant) navigate({ to: "/", replace: true });
+  }, [hydrated, user, tenant, isSuperAdmin, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -121,7 +123,10 @@ function AuthPage() {
               <button
                 key={d.id}
                 type="button"
-                onClick={() => loginAs(d.id)}
+                onClick={() => {
+                  const res = loginAs(d.id);
+                  if (!res.ok) toast.error(res.error ?? "No se pudo iniciar sesión");
+                }}
                 className="flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-accent"
               >
                 <d.icon className="h-4 w-4 shrink-0 text-primary" />
