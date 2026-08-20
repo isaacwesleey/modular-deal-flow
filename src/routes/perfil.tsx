@@ -100,7 +100,7 @@ function PerfilPage() {
           {initial}
         </div>
         <div className="min-w-0">
-          <p className="flex items-center gap-2 font-medium">
+          <div className="flex items-center gap-2 font-medium">
             {user.name}
             {user.emailVerified ? (
               <Badge variant="secondary" className="gap-1">
@@ -111,7 +111,7 @@ function PerfilPage() {
                 <MailWarning className="h-3.5 w-3.5" /> Sin verificar
               </Badge>
             )}
-          </p>
+          </div>
           <p className="truncate text-sm text-muted-foreground">{user.email}</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-1.5">
