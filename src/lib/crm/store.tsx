@@ -443,8 +443,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     if (!name.trim()) return { ok: false, error: "Indica tu nombre." };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))
       return { ok: false, error: "El email no es válido." };
-    if (!password || password.length < 4)
-      return { ok: false, error: "La contraseña debe tener al menos 4 caracteres." };
+    if (!password || password.length < 6)
+      return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
     if (root.users.some((u) => u.email.toLowerCase() === mail))
       return { ok: false, error: "Ya existe un usuario con ese email." };
     const tenantId = uid();
