@@ -23,7 +23,7 @@ export const Route = createFileRoute("/legal/cookies")({
 
 const TABLE: { name: string; owner: string; purpose: string; type: string; life: string }[] = [
   { name: "ventia-cookie-consent", owner: "Propia", purpose: "Guarda tu elección sobre cookies para no volver a preguntártelo.", type: "Necesaria", life: "12 meses" },
-  { name: "ventia-sesion", owner: "Propia", purpose: "Mantiene la sesión y los datos de trabajo de la aplicación.", type: "Necesaria", life: "Sesión / persistente" },
+  { name: "ventia-root-v1", owner: "Propia", purpose: "Mantiene la sesión y los datos de trabajo de la aplicación.", type: "Necesaria", life: "Persistente" },
   { name: "ventia-origen", owner: "Propia", purpose: "Registra el origen de la visita (campaña, referencia, dispositivo). Solo se guarda si aceptas marketing.", type: "Marketing", life: "6 meses" },
   { name: "_ga / _ga_*", owner: "Tercero: [proveedor de analítica]", purpose: "Estadísticas de uso agregadas para mejorar el sitio.", type: "Medición", life: "13 meses" },
   { name: "_fbp / ads", owner: "Tercero: [proveedor publicitario]", purpose: "Medición de campañas y publicidad relevante.", type: "Marketing", life: "3 meses" },
