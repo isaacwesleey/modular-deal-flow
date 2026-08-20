@@ -77,7 +77,11 @@ function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
     (f) => f.role === "company" && !/empresa|compañ|company|negocio/i.test(f.label),
   );
   if (!wrong) return fields;
-  const cleaned = fields.map((f) => (f.id === wrong.id ? { ...f, role: undefined } : f));
+  const cleaned: FieldDef[] = fields.map((f) => {
+    if (f.id !== wrong.id) return f;
+    const { role: _drop, ...rest } = f;
+    return rest;
+  });
   const existing = cleaned.find((f) => /empresa|compañ|company/i.test(f.label));
   if (existing) return cleaned.map((f) => (f.id === existing.id ? { ...f, role: "company" as const } : f));
   const idx = cleaned.findIndex((f) => f.id === wrong.id);
