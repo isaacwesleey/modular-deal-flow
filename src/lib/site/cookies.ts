@@ -5,11 +5,29 @@ export interface CookieConsent {
   decidedAt: string;
 }
 
-const KEY = "ventia-cookie-consent-v1";
+/** Clave real del consentimiento; es la que se documenta en la política de cookies. */
+const KEY = "ventia-cookie-consent";
+/** Claves anteriores: se migran una sola vez y se eliminan. */
+const LEGACY_KEYS = ["ventia-cookie-consent-v1", "crm-remix-cookie-consent"];
+
+function migrateLegacy() {
+  if (typeof window === "undefined") return;
+  try {
+    for (const k of LEGACY_KEYS) {
+      const raw = localStorage.getItem(k);
+      if (raw === null) continue;
+      if (localStorage.getItem(KEY) === null) localStorage.setItem(KEY, raw);
+      localStorage.removeItem(k);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 export function readConsent(): CookieConsent | null {
   if (typeof window === "undefined") return null;
   try {
+    migrateLegacy();
     const raw = localStorage.getItem(KEY);
     return raw ? (JSON.parse(raw) as CookieConsent) : null;
   } catch {
@@ -31,6 +49,7 @@ export function writeConsent(c: Omit<CookieConsent, "necessary" | "decidedAt">):
 export function clearConsent() {
   try {
     localStorage.removeItem(KEY);
+    for (const k of LEGACY_KEYS) localStorage.removeItem(k);
   } catch {
     /* ignore */
   }
