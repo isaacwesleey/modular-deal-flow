@@ -750,12 +750,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [root.notifications, root.currentUserId, root.currentTenantId],
   );
 
-  const notify: Ctx["notify"] = (entries) => {
+  const notify: Ctx["notify"] = (entries, opts) => {
     if (!entries.length) return;
     setRoot((r) => {
       const now = new Date().toISOString();
       const list: AppNotification[] = entries
-        .filter((e) => e.userId && e.userId !== r.currentUserId)
+        // Por defecto no te avisas a ti mismo; los recordatorios automáticos
+        // (tareas que vencen) sí necesitan llegarte aunque los dispares tú.
+        .filter((e) => e.userId && (opts?.allowSelf || e.userId !== r.currentUserId))
         .map((e) => ({
           ...e,
           tenantId: e.tenantId ?? r.currentTenantId ?? "",
