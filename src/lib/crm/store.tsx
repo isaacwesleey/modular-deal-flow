@@ -214,7 +214,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       return { ...r, tenants: { ...r.tenants, [id]: { ...t, name, state: next } } };
     });
 
-  const reset = () =>
   /** Historial: siempre sella quién y cuándo, nunca es decorativo. */
   const logEvents: Ctx["logEvents"] = (entries) => {
     if (!entries.length) return;
@@ -241,11 +240,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const reset = () =>
     setInternal((r) => {
       const id = r.currentTenantId;
       const t = id ? r.tenants[id] : null;
       if (!id || !t) return r;
-      // Restaura los datos de ejemplo pero conserva la identidad del tenant
+      // Restablece los datos base pero conserva la identidad del tenant
       // (nombre, logo, color de marca y tema).
       const fresh = defaultState();
       return {
