@@ -82,7 +82,7 @@ function NotasPage() {
       : [...state.notes];
     return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.notes, state.contacts, state.deals, q]);
+  }, [state.notes, state.contacts, state.deals, dq]);
 
   const PAGE_SIZE = user?.prefs?.pageSize ?? DEFAULT_PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));

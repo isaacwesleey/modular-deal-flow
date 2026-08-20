@@ -102,7 +102,7 @@ function TareasPage() {
       : [...state.tasks];
     return list.sort((a, b) => a.date.localeCompare(b.date));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.tasks, state.contacts, state.deals, q]);
+  }, [state.tasks, state.contacts, state.deals, dq]);
 
   const PAGE_SIZE = user?.prefs?.pageSize ?? DEFAULT_PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
