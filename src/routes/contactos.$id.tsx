@@ -454,7 +454,7 @@ function LeadPage() {
   );
 }
 
-function AttributionCard({ attribution }: { attribution?: Attribution }) {
+function AttributionCard({ attribution }: { attribution?: Attribution | undefined }) {
   const keys: (keyof Attribution)[] = [
     "utmSource",
     "utmMedium",
