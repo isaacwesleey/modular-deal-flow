@@ -157,6 +157,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setInternal(loadRoot());
     setHydrated(true);
+    // Captura de origen (UTMs, referrer, página de entrada) al llegar el visitante.
+    captureAttribution();
   }, []);
 
   useEffect(() => {
