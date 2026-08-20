@@ -17,6 +17,7 @@ import { Route as ContactosRouteImport } from './routes/contactos'
 import { Route as NotasRouteImport } from './routes/notas'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as TareasRouteImport } from './routes/tareas'
+import { Route as ContactosIdRouteImport } from './routes/contactos.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,26 +59,33 @@ const TareasRoute = TareasRouteImport.update({
   path: '/tareas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactosIdRoute = ContactosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ContactosRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/contactos': typeof ContactosRoute
+  '/contactos': typeof ContactosRouteWithChildren
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
   '/tareas': typeof TareasRoute
+  '/contactos/$id': typeof ContactosIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/contactos': typeof ContactosRoute
+  '/contactos': typeof ContactosRouteWithChildren
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
   '/tareas': typeof TareasRoute
+  '/contactos/$id': typeof ContactosIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,10 +93,11 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/contactos': typeof ContactosRoute
+  '/contactos': typeof ContactosRouteWithChildren
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
   '/tareas': typeof TareasRoute
+  '/contactos/$id': typeof ContactosIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/notas'
     | '/pipeline'
     | '/tareas'
+    | '/contactos/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/notas'
     | '/pipeline'
     | '/tareas'
+    | '/contactos/$id'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/notas'
     | '/pipeline'
     | '/tareas'
+    | '/contactos/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -128,7 +140,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AjustesRoute: typeof AjustesRoute
   AuthRoute: typeof AuthRoute
-  ContactosRoute: typeof ContactosRoute
+  ContactosRoute: typeof ContactosRouteWithChildren
   NotasRoute: typeof NotasRoute
   PipelineRoute: typeof PipelineRoute
   TareasRoute: typeof TareasRoute
@@ -192,15 +204,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TareasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contactos/$id': {
+      id: '/contactos/$id'
+      path: '/$id'
+      fullPath: '/contactos/$id'
+      preLoaderRoute: typeof ContactosIdRouteImport
+      parentRoute: typeof ContactosRoute
+    }
   }
 }
+
+interface ContactosRouteChildren {
+  ContactosIdRoute: typeof ContactosIdRoute
+}
+
+const ContactosRouteChildren: ContactosRouteChildren = {
+  ContactosIdRoute: ContactosIdRoute,
+}
+
+const ContactosRouteWithChildren = ContactosRoute._addFileChildren(
+  ContactosRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AjustesRoute: AjustesRoute,
   AuthRoute: AuthRoute,
-  ContactosRoute: ContactosRoute,
+  ContactosRoute: ContactosRouteWithChildren,
   NotasRoute: NotasRoute,
   PipelineRoute: PipelineRoute,
   TareasRoute: TareasRoute,
