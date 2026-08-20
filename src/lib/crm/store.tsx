@@ -8,6 +8,7 @@ import {
 } from "react";
 import { DEFAULT_PASSWORD, defaultState, emptyTenantState, seedRootState, uid } from "./defaults";
 import { brandForeground } from "./contrast";
+import { captureAttribution } from "./attribution";
 import { TRASH_DAYS } from "./roles";
 import type {
   ActivityEvent,
