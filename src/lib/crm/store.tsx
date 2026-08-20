@@ -381,6 +381,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         hydrated,
         root,
         setRoot,
+        tenantUsers,
+        logEvents,
         user,
         tenant,
         role,
