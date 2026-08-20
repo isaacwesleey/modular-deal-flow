@@ -229,3 +229,16 @@ export function ModuleOff({ name }: { name: string }) {
     </div>
   );
 }
+export function AccessDenied({ message }: { message?: string }) {
+  return (
+    <div className="mx-auto max-w-md rounded-xl border border-dashed p-10 text-center">
+      <h2 className="text-lg font-semibold">Acceso denegado</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {message ?? "No tienes permisos para ver esta sección. Habla con el administrador de tu organización."}
+      </p>
+      <Button asChild className="mt-4">
+        <Link to="/">Volver al inicio</Link>
+      </Button>
+    </div>
+  );
+}
