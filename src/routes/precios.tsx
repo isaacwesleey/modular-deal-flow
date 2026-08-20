@@ -12,9 +12,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const TITLE = "Precios de Ventia — Planes desde 15 € al mes";
+const TITLE = "Precios de Ventia — CRM desde 7 € al mes";
 const DESC =
-  "Tres planes claros para equipos comerciales: Esencial, Pro y Escala. Facturación mensual o anual con 20 % de descuento y 14 días de prueba sin tarjeta.";
+  "Tres planes bajos para equipos pequeños: desde 7 € al mes. Facturación mensual o anual con 20 % de descuento, sin permanencia y 14 días de prueba sin tarjeta.";
 
 export const Route = createFileRoute("/precios")({
   head: () => ({
@@ -33,16 +33,17 @@ export const Route = createFileRoute("/precios")({
 function PricingPage() {
   return (
     <SiteShell>
-      <section className="ventia-hero-bg py-16">
+      <section className="ventia-soft-bg border-b border-ventia-line py-16">
         <div className="mx-auto max-w-6xl px-4">
           <Reveal>
             <div className="text-center">
               <h1 className="text-4xl font-extrabold sm:text-5xl">
-                Precios sencillos, <span className="ventia-gradient-text">sin sorpresas</span>
+                Cuesta menos que perder un cliente
               </h1>
               <p className="mx-auto mt-4 max-w-2xl text-lg text-ventia-ink-soft">
-                Paga por las personas que venden, no por módulos que nunca abres. Cambias o cancelas
-                cuando quieras y te llevas tus datos siempre.
+                Un cliente que se pierde por no hacer seguimiento cuesta más que un año entero de
+                Ventia. Precio bajo, sin coste de alta y sin permanencia: cambias o cancelas cuando
+                quieras y te llevas tus datos siempre.
               </p>
             </div>
           </Reveal>
@@ -110,7 +111,7 @@ function PricingPage() {
             </table>
           </div>
           <div className="mt-8 text-center">
-            <CtaPrimary className="px-6 py-3.5 text-base">Empezar ahora</CtaPrimary>
+            <CtaPrimary className="px-6 py-3.5 text-base">Empezar gratis</CtaPrimary>
           </div>
         </div>
       </section>

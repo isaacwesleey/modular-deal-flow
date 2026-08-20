@@ -16,10 +16,10 @@ export const PLANS: Plan[] = [
   {
     id: "esencial",
     name: "Esencial",
-    tagline: "Para empezar a ordenar los leads esta misma semana.",
-    monthly: 19,
-    yearly: 15,
-    cta: "Empezar con Esencial",
+    tagline: "Para dejar de perder clientes esta misma semana.",
+    monthly: 9,
+    yearly: 7,
+    cta: "Empezar gratis",
     features: [
       "Hasta 3 usuarios",
       "Contactos y fichas de lead ilimitadas",
@@ -33,11 +33,11 @@ export const PLANS: Plan[] = [
   {
     id: "pro",
     name: "Pro",
-    tagline: "Para equipos comerciales que ya venden en serio.",
-    monthly: 39,
-    yearly: 31,
+    tagline: "Para cuando ya sois varios haciendo seguimiento.",
+    monthly: 19,
+    yearly: 15,
     highlight: true,
-    cta: "Probar Pro 14 días",
+    cta: "Empezar gratis",
     features: [
       "Usuarios ilimitados",
       "Todo lo de Esencial",
@@ -52,10 +52,10 @@ export const PLANS: Plan[] = [
   {
     id: "escala",
     name: "Escala",
-    tagline: "Varias marcas, varias unidades de negocio, un solo panel.",
-    monthly: 69,
-    yearly: 55,
-    cta: "Hablar con ventas",
+    tagline: "Varias marcas o negocios, todo separado y a la vista.",
+    monthly: 35,
+    yearly: 28,
+    cta: "Empezar gratis",
     features: [
       "Todo lo de Pro",
       "Multi organización con aislamiento total",

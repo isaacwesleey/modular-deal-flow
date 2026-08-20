@@ -63,7 +63,7 @@ function SiteHeader() {
               <Link to="/auth" className="text-sm font-semibold text-ventia-ink-soft hover:text-ventia-deep">
                 Iniciar sesión
               </Link>
-              <CtaPrimary>Crear cuenta gratis</CtaPrimary>
+              <CtaPrimary>Empezar gratis</CtaPrimary>
             </>
           )}
         </div>
@@ -89,7 +89,7 @@ function SiteHeader() {
               <CtaPrimary to="/inicio" className="w-full">Entrar en Ventia</CtaPrimary>
             ) : (
               <>
-                <CtaPrimary className="w-full">Crear cuenta gratis</CtaPrimary>
+                <CtaPrimary className="w-full">Empezar gratis</CtaPrimary>
                 <Link
                   to="/auth"
                   className="rounded-xl border border-ventia-line px-5 py-3 text-center text-sm font-semibold"
