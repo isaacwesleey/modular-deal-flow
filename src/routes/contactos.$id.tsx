@@ -17,7 +17,7 @@ import { uid } from "@/lib/crm/defaults";
 import { ACTIVITY_LABELS } from "@/lib/crm/activity";
 import { ATTRIBUTION_LABELS } from "@/lib/crm/attribution";
 import { dealAmount, ownerField, recordTitle, statusField } from "@/lib/crm/roles";
-import { FieldInput, FieldValueView, UserFieldInput, formatValue } from "@/components/crm/fields";
+import { FieldInput, UserFieldInput } from "@/components/crm/fields";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,7 @@ function LeadPage() {
   const [noteText, setNoteText] = useState("");
   const [newTask, setNewTask] = useState("");
   const [dealOpen, setDealOpen] = useState(false);
+  const emptyValues = useMemo<FieldValues>(() => ({}), []);
 
   const notes = useMemo(
     () => state.notes.filter((n) => n.linkType === "contact" && n.linkId === id),
@@ -445,7 +446,7 @@ function LeadPage() {
         onOpenChange={setDealOpen}
         title="Nueva oportunidad"
         fields={state.dealFields}
-        values={useMemo(() => ({}), [])}
+        values={emptyValues}
         recordId={`deal-${contact.id}`}
         onSave={createDeal}
       />
@@ -495,5 +496,3 @@ function AttributionCard({ attribution }: { attribution?: Attribution }) {
     </div>
   );
 }
-
-export { formatValue, FieldValueView };
