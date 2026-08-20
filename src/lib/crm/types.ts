@@ -158,6 +158,10 @@ export interface CrmState {
   tasks: Task[];
   notes: Note[];
   blocks: DashboardBlock[];
+  /** Historial de actividad de la organización. */
+  events: ActivityEvent[];
+  /** Vistas guardadas del listado de contactos. */
+  savedViews: SavedView[];
 }
 
 /** Estado de una organización (tenant). Es lo que antes era el estado global. */
