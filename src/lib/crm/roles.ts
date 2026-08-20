@@ -1,4 +1,4 @@
-import type { CrmState, Deal, FieldDef, FieldValues } from "./types";
+import type { Contact, CrmState, Deal, FieldDef, FieldValues } from "./types";
 
 /** Campo marcado como título/nombre (con fallback al primer campo). */
 export function titleField(fields: FieldDef[]): FieldDef | undefined {
@@ -8,6 +8,34 @@ export function titleField(fields: FieldDef[]): FieldDef | undefined {
 /** Campo marcado como importe (solo si existe un rol explícito). */
 export function amountField(fields: FieldDef[]): FieldDef | undefined {
   return fields.find((f) => f.role === "amount");
+}
+
+/** Campo marcado como estado del lead. */
+export function statusField(fields: FieldDef[]): FieldDef | undefined {
+  return fields.find((f) => f.role === "status");
+}
+
+/** Campo marcado como propietario asignado. */
+export function ownerField(fields: FieldDef[]): FieldDef | undefined {
+  return fields.find((f) => f.role === "owner");
+}
+
+/** Contactos activos (fuera de la papelera). */
+export function activeContacts(state: CrmState): Contact[] {
+  return state.contacts.filter((c) => !c.deletedAt);
+}
+
+/** Contactos en la papelera. */
+export function trashedContacts(state: CrmState): Contact[] {
+  return state.contacts.filter((c) => c.deletedAt);
+}
+
+/** Días que un registro permanece en la papelera antes del borrado definitivo. */
+export const TRASH_DAYS = 30;
+
+export function trashDaysLeft(deletedAt: string): number {
+  const ms = new Date(deletedAt).getTime() + TRASH_DAYS * 86400000 - Date.now();
+  return Math.max(0, Math.ceil(ms / 86400000));
 }
 
 export function recordTitle(fields: FieldDef[], values: FieldValues, fallback = "Sin título"): string {
