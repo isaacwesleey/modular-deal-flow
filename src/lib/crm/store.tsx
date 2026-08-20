@@ -120,7 +120,7 @@ interface Ctx {
   myTenants: Tenant[];
 
   login: (email: string, password: string) => { ok: boolean; error?: string };
-  loginAs: (userId: string, tenantId?: string | null) => void;
+  loginAs: (userId: string, tenantId?: string | null) => { ok: boolean; error?: string };
   logout: () => void;
   register: (input: {
     company: string;
@@ -252,13 +252,15 @@ export function CrmProvider({ children }: { children: ReactNode }) {
 
   const loginAs: Ctx["loginAs"] = (userId, tenantId) => {
     const found = root.users.find((u) => u.id === userId);
-    if (!found) return;
+    if (!found) return { ok: false, error: "Usuario no encontrado." };
     let t = tenantId ?? null;
     if (!t && !found.superAdmin) {
       const mine = found.memberships
         .map((m) => root.tenants[m.tenantId])
         .filter((x): x is Tenant => Boolean(x));
       t = (mine.find((x) => !x.suspended) ?? null)?.id ?? null;
+      if (!t)
+        return { ok: false, error: "Tu organización está suspendida. Contacta con el soporte del SaaS." };
     }
     setRoot((r) => ({
       ...r,
@@ -266,6 +268,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       currentTenantId: t,
       supportMode: Boolean(found.superAdmin && t),
     }));
+    return { ok: true };
   };
 
   const logout = () =>
