@@ -1,4 +1,4 @@
-import type { CrmState, RootState, Tenant, User } from "./types";
+import type { ActivityEvent, Attribution, CrmState, RootState, Tenant, User } from "./types";
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -14,6 +14,7 @@ export const FIELD_TYPE_LABELS: Record<string, string> = {
   checkbox: "Casilla",
   currency: "Moneda",
   url: "URL",
+  user: "Usuario del equipo",
 };
 
 export const BRAND_COLORS = [
@@ -38,6 +39,49 @@ const daysAgo = (d: number) => {
   return x.toISOString();
 };
 
+/** Atribuciones variadas para que el bloque de origen nunca se vea vacío. */
+const ATTRIBUTIONS: Attribution[] = [
+  {
+    utmSource: "meta",
+    utmMedium: "paid_social",
+    utmCampaign: "leads-primavera",
+    utmContent: "carrusel-a",
+    referrer: "https://www.facebook.com/",
+    landingPage: "/landing/rediseno-web",
+    device: "móvil",
+  },
+  {
+    utmSource: "google",
+    utmMedium: "cpc",
+    utmCampaign: "marca-generica",
+    utmTerm: "agencia diseño web",
+    referrer: "https://www.google.com/",
+    landingPage: "/",
+    device: "escritorio",
+  },
+  {
+    utmSource: "google",
+    utmMedium: "organic",
+    referrer: "https://www.google.com/",
+    landingPage: "/blog/como-elegir-agencia",
+    device: "escritorio",
+  },
+  {
+    utmSource: "referido",
+    utmMedium: "partner",
+    utmCampaign: "programa-partners",
+    referrer: "https://estudiolf.com/recursos",
+    landingPage: "/precios",
+    device: "tablet",
+  },
+  {
+    utmSource: "directo",
+    utmMedium: "none",
+    landingPage: "/",
+    device: "escritorio",
+  },
+];
+
 export function defaultState(): CrmState {
   const stages = [
     { id: "s1", name: "Nuevo lead", color: "oklch(0.72 0.13 250)" },
@@ -57,6 +101,7 @@ export function defaultState(): CrmState {
   ].map((c, i) => ({
     id: c.id,
     createdAt: daysAgo(i * 3 + 1),
+    attribution: { ...ATTRIBUTIONS[i % ATTRIBUTIONS.length]!, firstSeenAt: daysAgo(i * 3 + 2) },
     values: {
       nombre: c.nombre,
       email: c.email,
@@ -64,6 +109,7 @@ export function defaultState(): CrmState {
       empresa: c.empresa,
       etiquetas: c.etiquetas,
       estado: c.estado,
+      propietario: i % 2 === 0 ? "u-admin" : "u-user",
     },
   }));
 
@@ -100,7 +146,8 @@ export function defaultState(): CrmState {
       { id: "email", label: "Email", type: "email", showInQuickView: true },
       { id: "telefono", label: "Teléfono", type: "phone", showInQuickView: true },
       { id: "empresa", label: "Empresa", type: "text", showInQuickView: true },
-      { id: "estado", label: "Estado", type: "select", options: ["Lead", "Cliente", "Perdido"], showInQuickView: true },
+      { id: "estado", label: "Estado", type: "select", options: ["Nuevo", "Contactado", "Cualificado", "Cliente", "Perdido"], showInQuickView: true, role: "status" },
+      { id: "propietario", label: "Propietario", type: "user", showInQuickView: true, role: "owner" },
       { id: "etiquetas", label: "Etiquetas", type: "multiselect", options: ["VIP", "Web", "Newsletter", "Referido"], showInQuickView: false },
     ],
     dealFields: [
@@ -131,6 +178,15 @@ export function defaultState(): CrmState {
       { id: "b4", type: "ultimos-contactos" },
       { id: "b5", type: "actividad" },
     ],
+    events: contacts.map<ActivityEvent>((c, i) => ({
+      id: `ev-${c.id}`,
+      at: c.createdAt,
+      type: "contact.created",
+      actorId: i % 2 === 0 ? "u-admin" : "u-user",
+      actorName: i % 2 === 0 ? "Elena Admin" : "Iván Comercial",
+      contactId: c.id,
+    })),
+    savedViews: [],
   };
 }
 /* ---------------- Multi tenant: usuarios, organizaciones y demo ---------------- */
