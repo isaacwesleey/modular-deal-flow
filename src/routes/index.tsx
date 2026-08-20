@@ -1,30 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  BarChart3,
-  Check,
-  ClipboardList,
-  Clock3,
-  FileSpreadsheet,
-  KanbanSquare,
-  Layers,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Target,
-  Users,
-  X,
-} from "lucide-react";
 import { SiteShell, CtaPrimary } from "@/components/site/SiteShell";
-import { Reveal } from "@/components/site/Reveal";
 import { PricingPlans } from "@/components/site/Pricing";
 import { ContactForm } from "@/components/site/ContactForm";
-import {
-  FieldsPreview,
-  KanbanPreview,
-  LeadPreview,
-  TenantsPreview,
-} from "@/components/site/AppPreview";
+import { KanbanPreview, LeadPreview } from "@/components/site/AppPreview";
 import {
   Accordion,
   AccordionContent,
@@ -32,9 +10,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const TITLE = "Ventia — El CRM que tu equipo sí usa";
+const TITLE = "Ventia — Deja de perder clientes por no hacer seguimiento";
 const DESC =
-  "Ventia ordena tus leads, tu pipeline y tu seguimiento comercial en una herramienta que se adapta a tu forma de vender. Prueba 14 días sin tarjeta.";
+  "CRM sencillo para equipos pequeños que hoy llevan sus clientes en una hoja de cálculo. Se monta en una tarde, cuesta menos de lo que pierdes con un cliente y lo exportas cuando quieras.";
+
+/** Acción principal única, repetida con el mismo texto en toda la página. */
+const CTA = "Empezar gratis";
+/** Fricción explícita junto a cada llamada a la acción. */
+const FRICTION = "Sin tarjeta · se configura en minutos · exportas todo y cancelas cuando quieras";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,11 +37,10 @@ function LandingPage() {
   return (
     <SiteShell>
       <Hero />
-      <SocialProof />
-      <Problem />
-      <Features />
-      <UseCases />
-      <VsSpreadsheets />
+      <Cost />
+      <Solution />
+      <Proof />
+      <Objections />
       <PricingBlock />
       <Faq />
       <ContactBlock />
@@ -67,339 +49,177 @@ function LandingPage() {
   );
 }
 
+function Friction({ className = "" }: { className?: string }) {
+  return <p className={`text-xs text-ventia-ink-soft ${className}`}>{FRICTION}</p>;
+}
+
 function Hero() {
   return (
-    <section className="ventia-hero-bg relative overflow-hidden">
-      <div className="ventia-grid-bg absolute inset-0 opacity-[0.35]" aria-hidden />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:py-24">
+    <section className="border-b border-ventia-line bg-white">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:py-24">
         <div className="min-w-0">
-          <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-ventia-line bg-white/80 px-3 py-1 text-xs font-semibold text-ventia-deep">
-              <Sparkles className="h-3.5 w-3.5" /> Nuevo: campos personalizados sin límite
-            </span>
-          </Reveal>
-          <Reveal delay={80}>
-            <h1 className="mt-5 text-4xl leading-[1.05] font-extrabold sm:text-5xl lg:text-6xl">
-              Deja de perder ventas <span className="ventia-gradient-text">entre hojas de cálculo</span>
-            </h1>
-          </Reveal>
-          <Reveal delay={140}>
-            <p className="mt-5 max-w-xl text-lg text-ventia-ink-soft">
-              Ventia reúne cada lead, cada conversación y cada oportunidad en un sitio. Tu equipo ve
-              qué tiene que hacer hoy, y tú ves de dónde viene el dinero. Se configura en una tarde,
-              no en un proyecto de seis meses.
-            </p>
-          </Reveal>
-          <Reveal delay={200}>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <CtaPrimary className="px-6 py-3.5 text-base">Crear cuenta gratis</CtaPrimary>
-              <a
-                href="#contacto"
-                className="inline-flex items-center justify-center rounded-xl border border-ventia-line bg-white px-6 py-3.5 text-base font-semibold transition-colors hover:bg-ventia-mist"
-              >
-                Ver una demostración
-              </a>
-            </div>
-          </Reveal>
-          <Reveal delay={260}>
-            <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ventia-ink-soft">
-              {["14 días de prueba", "Sin tarjeta", "Tus datos exportables siempre"].map((t) => (
-                <li key={t} className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-ventia" /> {t}
-                </li>
-              ))}
-            </ul>
-          </Reveal>
-        </div>
-        <Reveal delay={160} className="relative min-w-0">
-          <div className="space-y-4">
-            <KanbanPreview />
-            <div className="ventia-float sm:ml-10">
-              <LeadPreview />
-            </div>
+          <h1 className="text-4xl leading-[1.05] font-extrabold sm:text-5xl lg:text-[3.4rem]">
+            Deja de perder clientes por no llamarles a tiempo
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-ventia-ink-soft">
+            Ventia es el CRM para equipos de 2 a 20 personas que hoy llevan sus clientes en una hoja
+            de cálculo: sabes a quién tienes que hablar hoy, en qué quedó cada conversación y qué
+            hay realmente cerca de cerrarse.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <CtaPrimary className="px-6 py-3.5 text-base">{CTA}</CtaPrimary>
           </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-function SocialProof() {
-  const logos = ["Reformas Aurora", "Studio Norte", "Clínica Ibai", "Legal Bidea", "Óptica Zubi"];
-  return (
-    <section className="border-y border-ventia-line bg-white py-10">
-      <div className="mx-auto max-w-6xl px-4">
-        <p className="text-center text-xs font-semibold tracking-[0.18em] text-ventia-ink-soft uppercase">
-          Más de 1.200 equipos comerciales confían en Ventia
-        </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 opacity-70">
-          {logos.map((l) => (
-            <span key={l} className="display text-base font-bold tracking-tight">
-              {l}
-            </span>
-          ))}
+          <Friction className="mt-3" />
         </div>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {[
-            {
-              q: "Pasamos de cuatro hojas de cálculo a un solo pipeline. En el primer mes cerramos tres presupuestos que se nos habrían olvidado.",
-              n: "Elena Uriarte",
-              r: "Directora comercial, Reformas Aurora",
-            },
-            {
-              q: "Lo montamos con nuestros propios campos en una tarde. El equipo lo usa porque habla su idioma, no el de un CRM genérico.",
-              n: "Aitor Beltrán",
-              r: "Socio, Studio Norte",
-            },
-            {
-              q: "Por fin sé qué campaña trae clientes de verdad. La atribución viene sola en cada ficha.",
-              n: "Marta Sáez",
-              r: "Marketing, Clínica Ibai",
-            },
-          ].map((t, i) => (
-            <Reveal key={t.n} delay={i * 90}>
-              <figure className="h-full rounded-2xl border border-ventia-line bg-ventia-mist/50 p-5">
-                <div className="flex gap-0.5 text-ventia-accent">
-                  {[0, 1, 2, 3, 4].map((s) => (
-                    <Star key={s} className="h-4 w-4 fill-current" />
-                  ))}
-                </div>
-                <blockquote className="mt-3 text-sm">«{t.q}»</blockquote>
-                <figcaption className="mt-4 text-xs text-ventia-ink-soft">
-                  <span className="font-semibold text-ventia-ink">{t.n}</span> · {t.r}
-                </figcaption>
-              </figure>
-            </Reveal>
-          ))}
+        <div className="min-w-0 space-y-4">
+          <KanbanPreview />
+          <div className="sm:ml-10">
+            <LeadPreview />
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function Problem() {
+function Cost() {
   const items = [
-    {
-      icon: Clock3,
-      t: "Los leads se enfrían sin que nadie se entere",
-      d: "Un email sin responder a tiempo es una venta que se lleva otro. Ventia te dice qué toca hoy y a quién.",
-    },
-    {
-      icon: ClipboardList,
-      t: "Cada comercial guarda la información a su manera",
-      d: "Con campos comunes y fichas iguales para todos, la información deja de vivir en cabezas y libretas.",
-    },
-    {
-      icon: BarChart3,
-      t: "Nadie sabe cuánto hay realmente en el pipeline",
-      d: "Etapas propias y valor por etapa: en tres segundos sabes qué vas a facturar este trimestre.",
-    },
+    ["El presupuesto que nunca se recordó", "Se envió, no hubo respuesta y nadie volvió a llamar."],
+    ["La conversación que solo estaba en una cabeza", "Se fue de vacaciones y el cliente se enfrió."],
+    ["La previsión que era una intuición", "Nadie sabía cuánto había abierto ni desde cuándo."],
   ];
   return (
-    <section className="bg-white py-20">
-      <div className="mx-auto max-w-6xl px-4">
-        <Reveal>
-          <p className="text-sm font-bold tracking-wide text-ventia-deep uppercase">El problema</p>
-          <h2 className="mt-3 max-w-2xl text-3xl font-extrabold sm:text-4xl">
-            No vendes menos por falta de esfuerzo. Vendes menos por falta de seguimiento.
-          </h2>
-        </Reveal>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {items.map((it, i) => (
-            <Reveal key={it.t} delay={i * 90}>
-              <div className="h-full rounded-2xl border border-ventia-line p-6 transition-shadow hover:shadow-lg">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ventia-mist text-ventia-deep">
-                  <it.icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-lg font-bold">{it.t}</h3>
-                <p className="mt-2 text-sm text-ventia-ink-soft">{it.d}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Features() {
-  const blocks = [
-    {
-      icon: KanbanSquare,
-      t: "Un pipeline que se parece a cómo vendes",
-      d: "Crea tus etapas, ponles color y arrastra las oportunidades. El valor de cada columna se recalcula solo, así que la previsión deja de ser una intuición.",
-      bullets: ["Etapas propias con orden y color", "Tarjetas arrastrables", "Valor total por etapa"],
-      visual: <KanbanPreview />,
-    },
-    {
-      icon: Target,
-      t: "La ficha de lead lo cuenta todo",
-      d: "Quién es, en qué punto está, de dónde vino y qué se ha hecho. Sin abrir el correo ni preguntar al compañero.",
-      bullets: ["Historial real de cambios", "Notas, tareas y oportunidades", "Origen: UTM, referrer y dispositivo"],
-      visual: <LeadPreview />,
-      flip: true,
-    },
-    {
-      icon: Layers,
-      t: "Campos a tu medida, sin programar",
-      d: "Texto, fecha, moneda, selector, usuario… Añade lo que tu negocio necesita, ordénalo arrastrando y decide qué se ve en la vista rápida.",
-      bullets: ["Editor de campos con arrastrar y soltar", "Roles: título, importe, estado, propietario", "Vista rápida configurable"],
-      visual: <FieldsPreview />,
-    },
-    {
-      icon: Users,
-      t: "Varias organizaciones, cero mezclas",
-      d: "Agencias, grupos y franquicias trabajan con marcas distintas desde la misma cuenta, con datos y permisos aislados.",
-      bullets: ["Aislamiento total entre organizaciones", "Roles de administrador y usuario", "Marca propia por organización"],
-      visual: <TenantsPreview />,
-      flip: true,
-    },
-  ];
-
-  return (
-    <section id="funciones" className="scroll-mt-20 bg-ventia-mist/40 py-20">
-      <div className="mx-auto max-w-6xl px-4">
-        <Reveal>
-          <p className="text-sm font-bold tracking-wide text-ventia-deep uppercase">Lo que consigues</p>
-          <h2 className="mt-3 max-w-2xl text-3xl font-extrabold sm:text-4xl">
-            Todo lo que necesitas para vender más ordenado, y nada de lo que sobra
-          </h2>
-        </Reveal>
-        <div className="mt-14 space-y-16">
-          {blocks.map((b, i) => (
-            <Reveal key={b.t} delay={40}>
-              <div
-                className={`grid items-center gap-8 lg:grid-cols-2 ${b.flip ? "lg:[&>*:first-child]:order-2" : ""}`}
-              >
-                <div>
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ventia-deep text-white">
-                    <b.icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 text-2xl font-bold">{b.t}</h3>
-                  <p className="mt-3 text-ventia-ink-soft">{b.d}</p>
-                  <ul className="mt-4 space-y-2 text-sm">
-                    {b.bullets.map((x) => (
-                      <li key={x} className="flex gap-2">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-ventia" /> {x}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link
-                    to="/auth"
-                    className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-ventia-deep hover:underline"
-                  >
-                    Probarlo con mis datos <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-                <div key={`v-${i}`}>{b.visual}</div>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function UseCases() {
-  const cases = [
-    {
-      t: "Reformas y servicios a domicilio",
-      d: "Solicitud, visita, presupuesto y obra. Cada lead con su dirección, sus metros y su responsable.",
-      m: "−38 % de presupuestos sin seguimiento",
-    },
-    {
-      t: "Agencias y estudios",
-      d: "Varios clientes, varias marcas. Una organización por cliente y un panel para verlas todas.",
-      m: "3 h/semana menos en reportes",
-    },
-    {
-      t: "Clínicas y consultas",
-      d: "Primera visita, tratamiento y revisión. Tareas con recordatorio para que nadie se pierda.",
-      m: "+22 % de revisiones recuperadas",
-    },
-    {
-      t: "B2B y equipos comerciales",
-      d: "Ciclos largos con muchos contactos. Historial completo para que un relevo no rompa la venta.",
-      m: "Previsión cerrada en 5 minutos",
-    },
-  ];
-  return (
-    <section id="casos" className="scroll-mt-20 bg-white py-20">
-      <div className="mx-auto max-w-6xl px-4">
-        <Reveal>
-          <p className="text-sm font-bold tracking-wide text-ventia-deep uppercase">Casos de uso</p>
-          <h2 className="mt-3 text-3xl font-extrabold sm:text-4xl">Se adapta a tu negocio, no al revés</h2>
-        </Reveal>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          {cases.map((c, i) => (
-            <Reveal key={c.t} delay={i * 80}>
-              <div className="flex h-full flex-col rounded-2xl border border-ventia-line bg-gradient-to-br from-white to-ventia-mist/60 p-6">
-                <h3 className="text-lg font-bold">{c.t}</h3>
-                <p className="mt-2 text-sm text-ventia-ink-soft">{c.d}</p>
-                <span className="mt-4 w-fit rounded-full bg-ventia-deep/10 px-3 py-1 text-xs font-semibold text-ventia-deep">
-                  {c.m}
-                </span>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function VsSpreadsheets() {
-  const rows: [string, string][] = [
-    ["Versiones distintas del mismo archivo", "Un único dato compartido y actualizado"],
-    ["Nadie sabe quién habló con quién", "Historial firmado con fecha y persona"],
-    ["Recordatorios en la cabeza", "Tareas con aviso de vencimiento"],
-    ["El origen del lead se pierde", "UTM, referrer y dispositivo en la ficha"],
-    ["Fórmulas rotas al añadir columnas", "Campos personalizados sin romper nada"],
-    ["Todo el mundo lo ve todo", "Roles y organizaciones aisladas"],
-  ];
-  return (
-    <section className="bg-ventia-ink py-20 text-white">
+    <section className="ventia-soft-bg border-b border-ventia-line py-16">
       <div className="mx-auto max-w-5xl px-4">
-        <Reveal>
-          <h2 className="text-center text-3xl font-extrabold sm:text-4xl">
-            La hoja de cálculo fue un buen comienzo. Hoy te está costando dinero.
-          </h2>
-        </Reveal>
-        <div className="mt-10 grid gap-4 md:grid-cols-2">
-          <Reveal>
-            <div className="rounded-2xl border border-white/15 bg-white/5 p-6">
-              <p className="flex items-center gap-2 text-sm font-bold text-white/70 uppercase">
-                <FileSpreadsheet className="h-4 w-4" /> Hoja de cálculo
-              </p>
-              <ul className="mt-4 space-y-3 text-sm text-white/80">
-                {rows.map(([a]) => (
-                  <li key={a} className="flex gap-2">
-                    <X className="mt-0.5 h-4 w-4 shrink-0 text-destructive" /> {a}
-                  </li>
-                ))}
-              </ul>
+        <h2 className="max-w-3xl text-3xl font-extrabold sm:text-4xl">
+          No vendes menos por trabajar poco. Vendes menos porque el seguimiento se te cae.
+        </h2>
+        <p className="mt-4 max-w-2xl text-ventia-ink-soft">
+          Un solo cliente perdido por olvido cuesta más que un año entero de Ventia. Y normalmente
+          no se pierde uno al año.
+        </p>
+        <dl className="mt-10 grid gap-8 sm:grid-cols-3">
+          {items.map(([t, d]) => (
+            <div key={t}>
+              <dt className="text-base font-bold">{t}</dt>
+              <dd className="mt-2 text-sm text-ventia-ink-soft">{d}</dd>
             </div>
-          </Reveal>
-          <Reveal delay={120}>
-            <div className="rounded-2xl border border-ventia/40 bg-ventia/10 p-6">
-              <p className="flex items-center gap-2 text-sm font-bold text-ventia uppercase">
-                <ShieldCheck className="h-4 w-4" /> Con Ventia
-              </p>
-              <ul className="mt-4 space-y-3 text-sm">
-                {rows.map(([, b]) => (
-                  <li key={b} className="flex gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-ventia" /> {b}
-                  </li>
-                ))}
-              </ul>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+function Solution() {
+  const benefits = [
+    [
+      "Sabes qué toca hoy sin pensarlo",
+      "Cada cliente lleva su próxima tarea con fecha. Abres Ventia y tienes la lista de llamadas del día hecha.",
+    ],
+    [
+      "Recuperas la conversación en cinco segundos",
+      "La ficha guarda el historial, las notas y de dónde vino el cliente, así que cualquiera del equipo puede continuar.",
+    ],
+    [
+      "Ves el dinero que hay abierto",
+      "Arrastras la oportunidad de una etapa a otra y el total por etapa se actualiza solo. La previsión deja de ser una sensación.",
+    ],
+    [
+      "Habla tu idioma, no el de un CRM",
+      "Defines tus propios campos y etapas con tus palabras. Por eso el equipo lo usa: no tiene que traducir su trabajo.",
+    ],
+  ];
+  return (
+    <section id="funciones" className="scroll-mt-20 border-b border-ventia-line bg-white py-16">
+      <div className="mx-auto max-w-5xl px-4">
+        <h2 className="max-w-3xl text-3xl font-extrabold sm:text-4xl">
+          Un sitio donde no se pierde nada
+        </h2>
+        <div className="mt-10 grid gap-x-12 gap-y-8 sm:grid-cols-2">
+          {benefits.map(([t, d]) => (
+            <div key={t} className="border-t border-ventia-line pt-5">
+              <h3 className="text-lg font-bold">{t}</h3>
+              <p className="mt-2 text-sm text-ventia-ink-soft">{d}</p>
             </div>
-          </Reveal>
+          ))}
         </div>
-        <div className="mt-10 text-center">
-          <CtaPrimary className="bg-white text-ventia-ink shadow-none hover:bg-white/90">
-            Empezar gratis
-          </CtaPrimary>
+        <div className="mt-10">
+          <CtaPrimary className="px-6 py-3.5 text-base">{CTA}</CtaPrimary>
+          <Friction className="mt-3" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Proof() {
+  const quotes = [
+    {
+      q: "Pasamos de cuatro hojas de cálculo a un solo pipeline. El primer mes cerramos dos presupuestos que se nos habrían olvidado.",
+      n: "Elena Uriarte",
+      r: "Reformas Aurora · 6 personas",
+    },
+    {
+      q: "Lo montamos con nuestros campos una tarde de viernes. El lunes el equipo ya estaba dentro sin formación.",
+      n: "Aitor Beltrán",
+      r: "Studio Norte · 4 personas",
+    },
+    {
+      q: "Por fin sé qué anuncios traen clientes de verdad, porque el origen viene solo en cada ficha.",
+      n: "Marta Sáez",
+      r: "Clínica Ibai · 9 personas",
+    },
+  ];
+  return (
+    <section id="casos" className="ventia-soft-bg scroll-mt-20 border-b border-ventia-line py-16">
+      <div className="mx-auto max-w-5xl px-4">
+        <h2 className="text-3xl font-extrabold sm:text-4xl">Equipos pequeños que ya lo usan</h2>
+        <div className="mt-10 grid gap-8 md:grid-cols-3">
+          {quotes.map((t) => (
+            <figure key={t.n} className="border-t border-ventia-line pt-5">
+              <blockquote className="text-sm">«{t.q}»</blockquote>
+              <figcaption className="mt-4 text-xs text-ventia-ink-soft">
+                <span className="font-semibold text-ventia-ink">{t.n}</span> · {t.r}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Objections() {
+  const items = [
+    [
+      "«Ya lo llevo en una hoja de cálculo»",
+      "Y funcionó al principio. El problema no es la hoja, es que no avisa: no recuerda llamadas, no guarda quién dijo qué y se duplica en cuanto sois dos. Importas tu CSV y sigues con los mismos datos, pero con memoria.",
+    ],
+    [
+      "«No tengo tiempo de montar un CRM»",
+      "No hay implantación. Creas la cuenta, subes el CSV y ajustas tus etapas. La gente que lo hace tarda una tarde y ese día ya trabaja dentro.",
+    ],
+    [
+      "«Mi equipo no lo va a usar»",
+      "Solo ven los campos que tú dejas visibles, con vuestro vocabulario, y la pantalla de inicio dice qué toca hoy. Quien sabe usar una hoja de cálculo sabe usar esto.",
+    ],
+    [
+      "«Es caro para lo que somos»",
+      "Empieza en 7 € al mes. Cuesta menos que perder un cliente al año por no hacer seguimiento, y no hay permanencia ni coste de alta.",
+    ],
+  ];
+  return (
+    <section className="border-b border-ventia-line bg-white py-16">
+      <div className="mx-auto max-w-4xl px-4">
+        <h2 className="text-3xl font-extrabold sm:text-4xl">Lo que sueles pensar antes de probarlo</h2>
+        <div className="mt-10 space-y-8">
+          {items.map(([t, d]) => (
+            <div key={t} className="border-t border-ventia-line pt-5">
+              <h3 className="text-lg font-bold">{t}</h3>
+              <p className="mt-2 text-ventia-ink-soft">{d}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -408,22 +228,19 @@ function VsSpreadsheets() {
 
 function PricingBlock() {
   return (
-    <section id="precios" className="scroll-mt-20 bg-white py-20">
+    <section id="precios" className="ventia-soft-bg scroll-mt-20 border-b border-ventia-line py-16">
       <div className="mx-auto max-w-6xl px-4">
-        <Reveal>
-          <div className="text-center">
-            <p className="text-sm font-bold tracking-wide text-ventia-deep uppercase">Precios</p>
-            <h2 className="mt-3 text-3xl font-extrabold sm:text-4xl">Cuesta menos que un lead perdido</h2>
-            <p className="mx-auto mt-3 max-w-xl text-ventia-ink-soft">
-              Sin permanencia, sin coste de implantación y con tus datos exportables desde el primer
-              día.
-            </p>
-          </div>
-        </Reveal>
+        <div className="max-w-2xl">
+          <h2 className="text-3xl font-extrabold sm:text-4xl">Cuesta menos que un cliente perdido</h2>
+          <p className="mt-3 text-ventia-ink-soft">
+            Desde 7 € al mes. Sin coste de implantación, sin permanencia y con tus datos exportables
+            desde el primer día.
+          </p>
+        </div>
         <div className="mt-10">
           <PricingPlans />
         </div>
-        <p className="mt-6 text-center text-sm">
+        <p className="mt-6 text-sm">
           <Link to="/precios" className="font-semibold text-ventia-deep hover:underline">
             Ver la comparativa completa de planes
           </Link>
@@ -435,48 +252,44 @@ function PricingBlock() {
 
 const FAQ = [
   {
-    q: "¿Cuánto tardo en tenerlo funcionando?",
-    a: "Una tarde. Creas tu organización, defines tus campos y tus etapas, importas tus contactos desde un CSV y ya estás vendiendo dentro de Ventia. No hay consultoría obligatoria ni instalación.",
+    q: "¿Qué pasa cuando acaban los 14 días?",
+    a: "Nada automático: no pedimos tarjeta para probar, así que no se cobra solo. Si decides seguir, eliges plan; si no, tus datos siguen exportables y la cuenta se queda inactiva.",
   },
   {
-    q: "Mi equipo no es técnico, ¿lo van a usar?",
-    a: "Esa es la idea. Ventia enseña solo los campos que tú decides, en tu vocabulario, y la pantalla de inicio dice qué toca hoy. Si un comercial sabe usar una hoja de cálculo, sabe usar Ventia.",
+    q: "¿Puedo traerme lo que ya tengo en la hoja de cálculo?",
+    a: "Sí. La importación CSV te deja emparejar tus columnas con tus campos y avisa de duplicados por email antes de crear nada.",
   },
   {
-    q: "¿Puedo traerme lo que ya tengo?",
-    a: "Sí. La importación CSV permite mapear tus columnas a tus campos y avisa de duplicados por email antes de crear nada. Y puedes volver a exportarlo todo cuando quieras.",
+    q: "¿Y si luego me quiero ir?",
+    a: "Exportas contactos, oportunidades, tareas y notas en CSV cuando quieras y cancelas desde los ajustes, sin llamadas ni retención.",
   },
   {
-    q: "¿Qué pasa con los datos de mis clientes?",
-    a: "Son tuyos. No los vendemos ni los usamos para entrenar nada. Puedes exportarlos o pedir su eliminación en cualquier momento, tal y como se detalla en la política de privacidad.",
+    q: "¿Pago por cada persona del equipo?",
+    a: "En Esencial no: es precio cerrado por empresa hasta 3 personas. En Pro y Escala pagas solo por quien entra de verdad, y puedes quitar usuarios cuando cambia el equipo.",
   },
   {
-    q: "¿Sirve si gestiono varias empresas o marcas?",
-    a: "Sí. Con el plan Escala tienes organizaciones independientes: campos, etapas, marca y usuarios separados, y un conmutador para pasar de una a otra sin cerrar sesión.",
+    q: "¿Necesito a alguien técnico para configurarlo?",
+    a: "No. Campos y etapas se crean y se ordenan arrastrando, sin fórmulas ni programación.",
   },
   {
-    q: "¿Y si me arrepiento?",
-    a: "Cancelas desde los ajustes, sin llamadas ni formularios de retención. Mantienes el acceso hasta el final del periodo pagado y te llevas tus datos en CSV.",
+    q: "¿Qué hacéis con los datos de mis clientes?",
+    a: "Son tuyos: no se venden ni se usan para entrenar nada. Puedes exportarlos o pedir su eliminación en cualquier momento, como se detalla en la política de privacidad.",
   },
 ];
 
 function Faq() {
   return (
-    <section id="faq" className="scroll-mt-20 bg-ventia-mist/40 py-20">
+    <section id="faq" className="scroll-mt-20 border-b border-ventia-line bg-white py-16">
       <div className="mx-auto max-w-3xl px-4">
-        <Reveal>
-          <h2 className="text-center text-3xl font-extrabold sm:text-4xl">Preguntas frecuentes</h2>
-        </Reveal>
-        <Reveal delay={80}>
-          <Accordion type="single" collapsible className="mt-8">
-            {FAQ.map((f) => (
-              <AccordionItem key={f.q} value={f.q}>
-                <AccordionTrigger className="text-left text-base font-semibold">{f.q}</AccordionTrigger>
-                <AccordionContent className="text-sm text-ventia-ink-soft">{f.a}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </Reveal>
+        <h2 className="text-3xl font-extrabold sm:text-4xl">Antes de decidir</h2>
+        <Accordion type="single" collapsible className="mt-8">
+          {FAQ.map((f) => (
+            <AccordionItem key={f.q} value={f.q}>
+              <AccordionTrigger className="text-left text-base font-semibold">{f.q}</AccordionTrigger>
+              <AccordionContent className="text-sm text-ventia-ink-soft">{f.a}</AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
       </div>
     </section>
   );
@@ -484,34 +297,18 @@ function Faq() {
 
 function ContactBlock() {
   return (
-    <section id="contacto" className="scroll-mt-20 bg-white py-20">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 lg:grid-cols-[1fr_1.1fr]">
-        <Reveal>
-          <div>
-            <p className="text-sm font-bold tracking-wide text-ventia-deep uppercase">Hablemos</p>
-            <h2 className="mt-3 text-3xl font-extrabold sm:text-4xl">
-              ¿Prefieres que te lo enseñemos con tus datos?
-            </h2>
-            <p className="mt-4 text-ventia-ink-soft">
-              Cuéntanos cómo vendéis hoy y te preparamos una demostración de 20 minutos con tu
-              pipeline y tus campos ya montados. Sin compromiso y sin discurso de vendedor.
-            </p>
-            <ul className="mt-6 space-y-3 text-sm">
-              {[
-                "Respuesta el mismo día laborable",
-                "Te decimos si Ventia no encaja en tu caso",
-                "Migramos tu CSV durante la sesión",
-              ].map((x) => (
-                <li key={x} className="flex gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-ventia" /> {x}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Reveal>
-        <Reveal delay={100}>
-          <ContactForm />
-        </Reveal>
+    <section id="contacto" className="ventia-soft-bg scroll-mt-20 border-b border-ventia-line py-16">
+      <div className="mx-auto grid max-w-5xl gap-10 px-4 lg:grid-cols-2">
+        <div>
+          <h2 className="text-3xl font-extrabold sm:text-4xl">
+            ¿Prefieres que te lo enseñemos con tus datos?
+          </h2>
+          <p className="mt-4 text-ventia-ink-soft">
+            Cuéntanos cómo vendéis hoy y te preparamos una sesión de 20 minutos con tu pipeline y
+            tus campos ya montados. Te decimos también si Ventia no encaja en tu caso.
+          </p>
+        </div>
+        <ContactForm />
       </div>
     </section>
   );
@@ -519,28 +316,18 @@ function ContactBlock() {
 
 function FinalCta() {
   return (
-    <section className="ventia-hero-bg py-20">
+    <section className="bg-white py-16">
       <div className="mx-auto max-w-3xl px-4 text-center">
-        <Reveal>
-          <h2 className="text-3xl font-extrabold sm:text-4xl">
-            Tu próximo cliente ya te ha escrito. ¿Vas a encontrarlo a tiempo?
-          </h2>
-          <p className="mt-4 text-lg text-ventia-ink-soft">
-            Empieza gratis hoy y ten tu pipeline ordenado antes de la próxima reunión de ventas.
-          </p>
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <CtaPrimary className="px-6 py-3.5 text-base">Crear cuenta gratis</CtaPrimary>
-            <Link
-              to="/precios"
-              className="inline-flex items-center justify-center rounded-xl border border-ventia-line bg-white px-6 py-3.5 text-base font-semibold hover:bg-ventia-mist"
-            >
-              Ver precios
-            </Link>
-          </div>
-          <p className="mt-4 text-xs text-ventia-ink-soft">
-            14 días de Pro · sin tarjeta · cancelas en un clic
-          </p>
-        </Reveal>
+        <h2 className="text-3xl font-extrabold sm:text-4xl">
+          Tu próximo cliente ya te ha escrito
+        </h2>
+        <p className="mt-4 text-lg text-ventia-ink-soft">
+          Ten el seguimiento ordenado antes de la próxima reunión de ventas.
+        </p>
+        <div className="mt-8 flex justify-center">
+          <CtaPrimary className="px-6 py-3.5 text-base">{CTA}</CtaPrimary>
+        </div>
+        <Friction className="mt-3" />
       </div>
     </section>
   );
