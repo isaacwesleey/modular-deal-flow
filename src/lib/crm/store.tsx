@@ -33,7 +33,9 @@ import type {
   UserPrefs,
 } from "./types";
 
-const ROOT_KEY = "crm-remix-root-v2";
+const ROOT_KEY = "ventia-root-v1";
+/** Claves de versiones anteriores de la plantilla; se migran una sola vez. */
+const LEGACY_ROOT_KEYS = ["crm-remix-root-v2"];
 const LEGACY_KEY = "crm-remix-state-v1";
 
 /**
