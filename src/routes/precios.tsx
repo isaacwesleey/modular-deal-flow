@@ -57,7 +57,10 @@ function PricingPage() {
           <Reveal>
             <h2 className="text-center text-3xl font-extrabold">Comparativa completa</h2>
           </Reveal>
-          <div className="mt-8 overflow-x-auto">
+          <p className="mt-4 text-center text-xs text-ventia-ink-soft sm:hidden">
+            Desliza la tabla en horizontal para ver todos los planes.
+          </p>
+          <div className="mt-4 overflow-x-auto sm:mt-8">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>
                 <tr>
