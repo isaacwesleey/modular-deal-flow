@@ -133,3 +133,86 @@ export function defaultState(): CrmState {
     ],
   };
 }
+/* ---------------- Multi tenant: usuarios, organizaciones y demo ---------------- */
+
+export function emptyTenantState(companyName: string, brandIndex = 0): CrmState {
+  const s = defaultState();
+  return {
+    ...s,
+    branding: { ...s.branding, companyName, brandHue: BRAND_COLORS[brandIndex % BRAND_COLORS.length]!.value },
+    contacts: [],
+    deals: [],
+    tasks: [],
+    notes: [],
+  };
+}
+
+export function makeTenant(name: string, state: CrmState): Tenant {
+  return { id: uid(), name, createdAt: new Date().toISOString(), state };
+}
+
+/** Segunda organización de demo, con datos, campos, marca y módulos distintos. */
+function studioNorteState(): CrmState {
+  const base = defaultState();
+  return {
+    ...base,
+    branding: { companyName: "Studio Norte", logo: "▲", brandHue: BRAND_COLORS[1]!.value, theme: "light" },
+    modules: { pipeline: true, tareas: true, notas: false },
+    stages: [
+      { id: "n1", name: "Solicitud", color: "oklch(0.72 0.13 250)" },
+      { id: "n2", name: "Presupuesto", color: "oklch(0.75 0.14 90)" },
+      { id: "n3", name: "En obra", color: "oklch(0.72 0.15 60)" },
+      { id: "n4", name: "Entregado", color: "oklch(0.68 0.15 155)" },
+    ],
+    contactFields: [
+      { id: "nombre", label: "Cliente", type: "text", core: true, showInQuickView: true, role: "title" },
+      { id: "email", label: "Email", type: "email", showInQuickView: true },
+      { id: "ciudad", label: "Ciudad", type: "text", showInQuickView: true },
+      { id: "sector", label: "Sector", type: "select", options: ["Retail", "Hostelería", "Oficinas"], showInQuickView: true },
+    ],
+    dealFields: [
+      { id: "titulo", label: "Proyecto", type: "text", core: true, showInQuickView: true, role: "title" },
+      { id: "presupuesto", label: "Presupuesto", type: "currency", showInQuickView: true, role: "amount" },
+      { id: "m2", label: "Metros cuadrados", type: "number", showInQuickView: true },
+    ],
+    contacts: [
+      { id: "sc1", createdAt: daysAgo(2), values: { nombre: "Bar Aurora", email: "hola@baraurora.es", ciudad: "Bilbao", sector: "Hostelería" } },
+      { id: "sc2", createdAt: daysAgo(6), values: { nombre: "Óptica Zubi", email: "info@opticazubi.com", ciudad: "Donostia", sector: "Retail" } },
+      { id: "sc3", createdAt: daysAgo(11), values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", ciudad: "Bilbao", sector: "Oficinas" } },
+    ],
+    deals: [
+      { id: "sd1", createdAt: daysAgo(2), stageId: "n2", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
+      { id: "sd2", createdAt: daysAgo(5), stageId: "n3", values: { titulo: "Escaparate Óptica Zubi", presupuesto: 6400, m2: 35 } },
+      { id: "sd3", createdAt: daysAgo(9), stageId: "n4", values: { titulo: "Salas Coworking Ría", presupuesto: 24000, m2: 260 } },
+    ],
+    tasks: [
+      { id: "st1", title: "Visita técnica Bar Aurora", kind: "reunion", date: iso(0, 12), done: false, linkType: "deal", linkId: "sd1" },
+      { id: "st2", title: "Enviar planos a Óptica Zubi", kind: "email", date: iso(1, 9), done: false, linkType: "deal", linkId: "sd2" },
+    ],
+    notes: [],
+    blocks: [
+      { id: "sb1", type: "numero", config: { title: "Valor en curso", metric: "valor-pipeline" } },
+      { id: "sb2", type: "pipeline-resumen" },
+      { id: "sb3", type: "tareas-hoy" },
+    ],
+  };
+}
+
+export function demoRootState(): RootState {
+  const t1: Tenant = { id: "acme", name: "Mi Empresa", createdAt: daysAgo(40), state: defaultState() };
+  const t2: Tenant = { id: "norte", name: "Studio Norte", createdAt: daysAgo(15), state: studioNorteState() };
+
+  const users: User[] = [
+    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: "demo1234", superAdmin: true, memberships: [] },
+    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: "demo1234", memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
+    { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: "demo1234", memberships: [{ tenantId: t1.id, role: "user" }] },
+    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: "demo1234", memberships: [{ tenantId: t2.id, role: "admin" }] },
+  ];
+
+  return {
+    tenants: { [t1.id]: t1, [t2.id]: t2 },
+    users,
+    currentUserId: null,
+    currentTenantId: null,
+  };
+}
