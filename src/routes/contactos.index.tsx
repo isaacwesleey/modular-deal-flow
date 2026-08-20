@@ -23,6 +23,7 @@ import {
   activeContacts,
   emailField as emailRoleField,
   ownerField,
+  recordTitle,
   statusField,
   trashDaysLeft,
   trashedContacts,
@@ -577,10 +578,12 @@ function ContactosPage() {
           />
         </div>
         <table className="w-full text-sm">
+          <caption className="sr-only">Listado de contactos</caption>
           <thead>
             <tr className="border-b bg-muted/40 text-left">
-              <th className="w-10 px-4 py-3">
+              <th scope="col" className="w-10 px-4 py-3">
                 <Checkbox
+                  aria-label="Seleccionar todos los contactos de la página"
                   checked={allChecked}
                   onCheckedChange={(v) =>
                     setSelected(v ? Array.from(new Set([...selected, ...rows.map((r) => r.id)])) : [])
@@ -588,18 +591,26 @@ function ContactosPage() {
                 />
               </th>
               {quick.map((f) => (
-                <th key={f.id} className="px-4 py-3 text-xs font-medium text-muted-foreground">
+                <th
+                  key={f.id}
+                  scope="col"
+                  className="px-4 py-3 text-xs font-medium text-muted-foreground"
+                  {...(sortBy === f.id ? { "aria-sort": sortDir === "asc" ? ("ascending" as const) : ("descending" as const) } : {})}
+                >
                   <button
                     type="button"
                     className="inline-flex items-center gap-1 hover:text-foreground"
                     onClick={() => toggleSort(f.id)}
+                    aria-label={`Ordenar por ${f.label}`}
                   >
                     {f.label}
-                    <ArrowUpDown className="h-3 w-3" />
+                    <ArrowUpDown className="h-3 w-3" aria-hidden="true" />
                   </button>
                 </th>
               ))}
-              <th className="px-4 py-3" />
+              <th scope="col" className="px-4 py-3">
+                <span className="sr-only">Acciones</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -691,7 +702,6 @@ function ContactosPage() {
               onClick={() => {
                 contactsApi.remove(selected);
                 setSelected([]);
-                toast.success("Movidos a la papelera");
               }}
             >
               Eliminar
@@ -840,7 +850,11 @@ function ContactRow({
   return (
     <tr className="border-b last:border-0 hover:bg-accent/50">
       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={checked} onCheckedChange={(v) => onCheck(Boolean(v))} />
+        <Checkbox
+          aria-label={`Seleccionar ${recordTitle(fields, contact.values, "contacto")}`}
+          checked={checked}
+          onCheckedChange={(v) => onCheck(Boolean(v))}
+        />
       </td>
       {quick.map((qf) => {
         const f = fields.find((x) => x.id === qf.id)!;
@@ -856,6 +870,7 @@ function ContactRow({
         ) : (
           <button type="button" className="hover:text-foreground" onClick={onOpen}>
             Abrir ficha
+            <span className="sr-only"> de {recordTitle(fields, contact.values, "contacto")}</span>
           </button>
         )}
       </td>

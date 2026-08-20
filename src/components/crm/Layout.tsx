@@ -107,9 +107,16 @@ export function CrmLayout({ children }: { children: ReactNode }) {
   const toggleTheme = () => updatePrefs({ theme: isDark ? "light" : "dark" });
 
   return (
-    <div className="flex min-h-screen w-full bg-background text-foreground">
+    <div className="flex min-h-dvh w-full bg-background text-foreground">
+      {/* Salto al contenido: primer tabulador de la página. */}
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+      >
+        Saltar al contenido
+      </a>
       <aside
-        className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-sidebar transition-all md:flex ${
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r bg-sidebar transition-all md:flex ${
           collapsed ? "w-16" : "w-60"
         }`}
       >
@@ -125,7 +132,7 @@ export function CrmLayout({ children }: { children: ReactNode }) {
             <span className="truncate text-sm font-semibold">{state.branding.companyName}</span>
           )}
         </div>
-        <nav className="flex-1 space-y-1 px-2 py-2">
+        <nav aria-label="Navegación principal" className="flex-1 space-y-1 px-2 py-2">
           {nav.map((item) => {
             const active = pathname === item.to;
             return (
@@ -172,8 +179,15 @@ export function CrmLayout({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
-          <Button variant="ghost" size="icon" onClick={() => setCollapsed((c) => !c)} className="hidden md:inline-flex">
-            <PanelLeft className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed((c) => !c)}
+            className="hidden md:inline-flex"
+            aria-label={collapsed ? "Desplegar el menú lateral" : "Plegar el menú lateral"}
+            aria-expanded={!collapsed}
+          >
+            <PanelLeft className="h-4 w-4" aria-hidden="true" />
           </Button>
           <span className="min-w-0 max-w-[7.5rem] truncate text-sm font-semibold sm:max-w-none md:hidden">
             {state.branding.companyName}
@@ -293,7 +307,7 @@ export function CrmLayout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden">
+        <nav aria-label="Navegación principal (móvil)" className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden">
           {[...nav, ...(canManageSettings ? [{ to: "/ajustes", label: "Ajustes", icon: Settings }] : [])].map((item) => (
             <Link
               key={item.to}
@@ -309,6 +323,7 @@ export function CrmLayout({ children }: { children: ReactNode }) {
         </nav>
 
         <main
+          id="contenido"
           data-density={user?.prefs?.density ?? "comoda"}
           className="flex-1 p-4 md:p-6"
         >{hydrated ? children : null}</main>

@@ -32,6 +32,7 @@ import {
   titleField,
 } from "@/lib/crm/roles";
 import { FieldInput, UserFieldInput } from "@/components/crm/fields";
+import { Label } from "@/components/ui/label";
 import { validateField } from "@/lib/crm/validation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -233,13 +234,14 @@ function LeadPage() {
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {status && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Estado: ${status.label}`}>
                   {(status.options ?? []).map((o) => {
                     const on = String(contact.values[status.id] ?? "") === o;
                     return (
                       <button
                         key={o}
                         type="button"
+                        aria-pressed={on}
                         onClick={() => setStatus([contact.id], o)}
                         className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                           on
@@ -255,7 +257,11 @@ function LeadPage() {
               )}
               {owner && (
                 <div className="w-52">
+                  <Label htmlFor="ficha-propietario" className="sr-only">
+                    {owner.label}
+                  </Label>
                   <UserFieldInput
+                    id="ficha-propietario"
                     value={contact.values[owner.id]}
                     onChange={(v) => setOwner([contact.id], String(v ?? ""))}
                   />
@@ -330,7 +336,11 @@ function LeadPage() {
             {state.modules.notas && (
               <TabsContent value="notas" className="space-y-4 pt-4">
                 <div className="space-y-2">
+                  <Label htmlFor="nueva-nota" className="sr-only">
+                    Nueva nota
+                  </Label>
                   <Textarea
+                    id="nueva-nota"
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     placeholder="Escribe una nota sobre este lead..."
@@ -393,6 +403,9 @@ function LeadPage() {
             {state.modules.tareas && (
               <TabsContent value="tareas" className="space-y-4 pt-4">
                 <div className="flex gap-2">
+                  <Label htmlFor="nueva-tarea" className="sr-only">
+                    Nueva tarea para este lead
+                  </Label>
                   <Input
                     id="nueva-tarea"
                     value={newTask}
@@ -476,22 +489,35 @@ function LeadPage() {
               <StickyNote className="h-4 w-4" /> Datos del lead
             </h2>
             <div className="space-y-3">
-              {fields.map((f) => (
-                <div key={f.id} className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {f.label}
-                    {f.required && <span className="ml-0.5 text-destructive">*</span>}
-                  </p>
-                  <FieldInput
-                    field={f}
-                    value={contact.values[f.id]}
-                    onChange={(v) => setValue(f.id, v)}
-                  />
-                  {fieldErrors[f.id] && (
-                    <p className="text-xs text-destructive">{fieldErrors[f.id]}</p>
-                  )}
-                </div>
-              ))}
+              {fields.map((f) => {
+                const inputId = `ficha-${f.id}`;
+                const errorId = `${inputId}-error`;
+                return (
+                  <div key={f.id} className="space-y-1.5">
+                    <Label htmlFor={inputId} className="text-xs font-medium text-muted-foreground">
+                      {f.label}
+                      {f.required && (
+                        <span className="ml-0.5 text-destructive" aria-hidden="true">
+                          *
+                        </span>
+                      )}
+                      {f.required && <span className="sr-only"> (obligatorio)</span>}
+                    </Label>
+                    <FieldInput
+                      field={f}
+                      id={inputId}
+                      {...(fieldErrors[f.id] ? { describedBy: errorId, invalid: true } : {})}
+                      value={contact.values[f.id]}
+                      onChange={(v) => setValue(f.id, v)}
+                    />
+                    {fieldErrors[f.id] && (
+                      <p id={errorId} role="alert" className="text-xs text-destructive">
+                        {fieldErrors[f.id]}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

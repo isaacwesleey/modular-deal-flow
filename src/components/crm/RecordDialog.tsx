@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,8 @@ export function RecordDialog({
   const [errors, setErrors] = useState<FieldErrors>({});
   const valuesRef = useRef(values);
   valuesRef.current = values;
+  // Prefijo único: varios diálogos a la vez no pueden repetir ids.
+  const uidPrefix = useId();
 
   // Solo se sincroniza al abrir el diálogo o al cambiar de registro,
   // nunca en cada render (values puede ser un objeto nuevo cada vez).
@@ -81,14 +83,24 @@ export function RecordDialog({
         </DialogHeader>
         <div className="space-y-4">
           {extra}
-          {fields.map((f) => (
+          {fields.map((f) => {
+            const inputId = `${uidPrefix}-${f.id}`;
+            const errorId = `${inputId}-error`;
+            return (
             <div key={f.id} className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
+              <Label htmlFor={inputId} className="text-xs font-medium text-muted-foreground">
                 {f.label}
-                {f.required && <span className="ml-0.5 text-destructive">*</span>}
+                {f.required && (
+                  <span className="ml-0.5 text-destructive" aria-hidden="true">
+                    *
+                  </span>
+                )}
+                {f.required && <span className="sr-only"> (obligatorio)</span>}
               </Label>
               <FieldInput
                 field={f}
+                id={inputId}
+                {...(errors[f.id] ? { describedBy: errorId, invalid: true } : {})}
                 value={draft[f.id]}
                 onChange={(v) => {
                   setDraft((d) => ({ ...d, [f.id]: v }));
@@ -99,9 +111,14 @@ export function RecordDialog({
                 }}
                 {...(entity ? { entity } : {})}
               />
-              {errors[f.id] && <p className="text-xs text-destructive">{errors[f.id]}</p>}
+              {errors[f.id] && (
+                <p id={errorId} role="alert" className="text-xs text-destructive">
+                  {errors[f.id]}
+                </p>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
           {onDelete && deleteConfirm ? (

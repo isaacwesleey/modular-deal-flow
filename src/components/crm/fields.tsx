@@ -71,15 +71,18 @@ function UserValue({ value }: { value: unknown }) {
 export function UserFieldInput({
   value,
   onChange,
+  id,
 }: {
   value: unknown;
   onChange: (v: unknown) => void;
+  /** Enlaza el control con su <label> (accesibilidad). */
+  id?: string;
 }) {
   const { tenantUsers } = useCrm();
   const str = String(value ?? "");
   return (
     <Select value={str || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
-      <SelectTrigger>
+      <SelectTrigger {...(id ? { id } : {})}>
         <SelectValue placeholder="Sin asignar" />
       </SelectTrigger>
       <SelectContent>
@@ -99,46 +102,65 @@ export function FieldInput({
   value,
   onChange,
   entity,
+  id,
+  describedBy,
+  invalid,
 }: {
   field: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
   /** Necesario para poder crear opciones nuevas sobre la marcha. */
   entity?: "contactFields" | "dealFields";
+  /**
+   * Accesibilidad: id del control para poder asociarle su <label>, id del
+   * mensaje de error y estado inválido. Sin esto un lector de pantalla no sabe
+   * qué campo se está editando ni por qué falla.
+   */
+  id?: string;
+  describedBy?: string;
+  invalid?: boolean;
 }) {
   const str = value === undefined || value === null ? "" : String(value);
+  /** Atributos comunes de accesibilidad para cualquier control del campo. */
+  const a11y = {
+    ...(id ? { id } : {}),
+    ...(describedBy ? { "aria-describedby": describedBy } : {}),
+    ...(invalid ? { "aria-invalid": true } : {}),
+    ...(field.required ? { "aria-required": true } : {}),
+  } as const;
 
   switch (field.type) {
     case "user":
-      return <UserFieldInput value={value} onChange={onChange} />;
+      return <UserFieldInput value={value} onChange={onChange} {...(id ? { id } : {})} />;
     case "textarea":
-      return <Textarea value={str} onChange={(e) => onChange(e.target.value)} rows={3} />;
+      return <Textarea {...a11y} value={str} onChange={(e) => onChange(e.target.value)} rows={3} />;
     case "number":
     case "currency":
       return (
         <Input
+          {...a11y}
           type="number"
           value={str}
           onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
         />
       );
     case "date":
-      return <Input type="date" value={str} onChange={(e) => onChange(e.target.value)} />;
+      return <Input {...a11y} type="date" value={str} onChange={(e) => onChange(e.target.value)} />;
     case "email":
-      return <Input type="email" value={str} onChange={(e) => onChange(e.target.value)} />;
+      return <Input {...a11y} type="email" value={str} onChange={(e) => onChange(e.target.value)} />;
     case "phone":
-      return <Input type="tel" value={str} onChange={(e) => onChange(e.target.value)} />;
+      return <Input {...a11y} type="tel" value={str} onChange={(e) => onChange(e.target.value)} />;
     case "url":
-      return <Input type="url" placeholder="https://" value={str} onChange={(e) => onChange(e.target.value)} />;
+      return <Input {...a11y} type="url" placeholder="https://" value={str} onChange={(e) => onChange(e.target.value)} />;
     case "checkbox":
       return (
-        <Checkbox checked={Boolean(value)} onCheckedChange={(c) => onChange(Boolean(c))} />
+        <Checkbox {...a11y} checked={Boolean(value)} onCheckedChange={(c) => onChange(Boolean(c))} />
       );
     case "select":
       return (
         <div className="space-y-1.5">
           <Select {...(str ? { value: str } : {})} onValueChange={(v) => onChange(v)}>
-            <SelectTrigger>
+            <SelectTrigger {...a11y}>
               <SelectValue placeholder="Selecciona..." />
             </SelectTrigger>
             <SelectContent>
@@ -164,13 +186,14 @@ export function FieldInput({
       const opts = field.options ?? [];
       return (
         <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5" role="group" {...a11y} aria-label={field.label}>
             {opts.map((o) => {
             const on = arr.includes(o);
             return (
               <button
                 key={o}
                 type="button"
+                aria-pressed={on}
                 onClick={() => onChange(on ? arr.filter((x) => x !== o) : [...arr, o])}
                 className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
                   on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent"
@@ -196,7 +219,7 @@ export function FieldInput({
       );
     }
     default:
-      return <Input value={str} onChange={(e) => onChange(e.target.value)} />;
+      return <Input {...a11y} value={str} onChange={(e) => onChange(e.target.value)} />;
   }
 }
 
@@ -240,10 +263,19 @@ function NewOption({
           }
         }}
         placeholder={placeholder}
+        aria-label={placeholder}
         className="h-8 text-xs"
       />
-      <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={submit} disabled={!text.trim()}>
-        <Plus className="h-3.5 w-3.5" />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-8 px-2"
+        onClick={submit}
+        disabled={!text.trim()}
+        aria-label={placeholder}
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
       </Button>
     </div>
   );
