@@ -33,6 +33,7 @@ export function RecordDialog({
   onDelete,
   deleteConfirm,
   extra,
+  entity,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -46,6 +47,8 @@ export function RecordDialog({
   /** Texto de confirmación previo al borrado (si se omite, borra directamente). */
   deleteConfirm?: string;
   extra?: React.ReactNode;
+  /** Permite crear opciones de selector/etiquetas al vuelo. */
+  entity?: "contactFields" | "dealFields";
 }) {
   const [draft, setDraft] = useState<FieldValues>(values);
   const valuesRef = useRef(values);
@@ -72,6 +75,7 @@ export function RecordDialog({
                 field={f}
                 value={draft[f.id]}
                 onChange={(v) => setDraft((d) => ({ ...d, [f.id]: v }))}
+                {...(entity ? { entity } : {})}
               />
             </div>
           ))}

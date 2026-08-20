@@ -70,7 +70,9 @@ export type ActivityType =
   | "deal.linked"
   | "deal.stage"
   | "deal.deleted"
-  | "deal.restored";
+  | "deal.restored"
+  | "deal.auto"
+  | "lead.intake";
 
 /** Registro de auditoría por organización. */
 export interface ActivityEvent {
@@ -101,12 +103,16 @@ export interface SavedView {
   filters: { fieldId: string; value: string }[];
   sortBy?: string;
   sortDir?: "asc" | "desc";
+  /** Columnas visibles y su orden en el listado (si se omite, se usan las de vista rápida). */
+  columns?: string[];
 }
 
 export interface Deal {
   id: string;
   createdAt: string;
   stageId: string;
+  /** Pipeline al que pertenece la oportunidad. */
+  pipelineId?: string;
   /** Relación real con el contacto (nunca se deduce por texto). */
   contactId?: string;
   values: FieldValues;
@@ -114,10 +120,47 @@ export interface Deal {
   deletedAt?: string;
 }
 
+/** Un embudo con sus propias etapas (Ventas, Postventa...). */
+export interface Pipeline {
+  id: string;
+  name: string;
+}
+
 export interface Stage {
   id: string;
   name: string;
   color: string;
+  /** Pipeline al que pertenece la etapa. */
+  pipelineId?: string;
+}
+
+/**
+ * Regla de automatización: cuando el estado del lead pasa a `statusValue`,
+ * se crea una oportunidad en la etapa indicada.
+ */
+export interface LeadToDealRule {
+  enabled: boolean;
+  statusValue: string;
+  pipelineId: string;
+  stageId: string;
+}
+
+/** Registro de una entrada recibida por webhook/API (simulado). */
+export interface IntakeLog {
+  id: string;
+  at: string;
+  source: string;
+  ok: boolean;
+  message: string;
+  contactId?: string;
+  dealId?: string;
+  payload?: string;
+}
+
+export interface IntakeConfig {
+  /** Clave de la organización para firmar/autenticar la llamada (simulada). */
+  key: string;
+  logs: IntakeLog[];
 }
 
 export type TaskKind = "llamada" | "email" | "reunion" | "otro";
@@ -194,6 +237,8 @@ export interface UserPrefs {
   pageSize?: number;
   timezone?: string;
   avatarColor?: string;
+  /** Columnas visibles (y su orden) en el listado de contactos. */
+  contactColumns?: string[];
 }
 
 export type BlockKey =
@@ -227,6 +272,8 @@ export interface CrmState {
   modules: Record<ModuleKey, boolean>;
   contactFields: FieldDef[];
   dealFields: FieldDef[];
+  /** Embudos disponibles. Siempre hay al menos uno. */
+  pipelines: Pipeline[];
   stages: Stage[];
   contacts: Contact[];
   deals: Deal[];
@@ -237,6 +284,10 @@ export interface CrmState {
   events: ActivityEvent[];
   /** Vistas guardadas del listado de contactos. */
   savedViews: SavedView[];
+  /** Regla de conversión automática de lead a oportunidad. */
+  leadToDeal?: LeadToDealRule;
+  /** Entradas por webhook/API (simuladas). */
+  intake?: IntakeConfig;
 }
 
 /** Estado de una organización (tenant). Es lo que antes era el estado global. */

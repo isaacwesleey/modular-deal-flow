@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   DEFAULT_PASSWORD,
+  DEFAULT_PIPELINE_ID,
   SCHEMA_VERSION,
   defaultState,
   emptyTenantState,
@@ -146,6 +147,19 @@ function migrateTenantState(s: CrmState): CrmState {
     );
     return match ? { ...d, contactId: byTitle.get(String(match).trim().toLowerCase())! } : d;
   });
+  /**
+   * Migración a varios embudos: lo que había pasa a un pipeline por defecto
+   * llamado "Ventas" sin perder nada (etapas, oportunidades ni orden).
+   */
+  const pipelines = s.pipelines?.length ? s.pipelines : [{ id: DEFAULT_PIPELINE_ID, name: "Ventas" }];
+  const firstPipeline = pipelines[0]!.id;
+  const stages = (s.stages ?? []).map((st) =>
+    st.pipelineId ? st : { ...st, pipelineId: firstPipeline },
+  );
+  const stageById = new Map(stages.map((st) => [st.id, st]));
+  const dealsWithPipeline = deals.map((d) =>
+    d.pipelineId ? d : { ...d, pipelineId: stageById.get(d.stageId)?.pipelineId ?? firstPipeline },
+  );
   return {
     ...defaultState(),
     ...s,
@@ -154,7 +168,10 @@ function migrateTenantState(s: CrmState): CrmState {
     dealFields: ensureRoles(s.dealFields ?? [], true),
     events: (s.events ?? []).slice(0, MAX_EVENTS),
     savedViews: s.savedViews ?? [],
-    deals,
+    pipelines,
+    stages,
+    deals: dealsWithPipeline,
+    intake: s.intake ?? { key: `vk_${uid()}${uid()}`, logs: [] },
     // Purga automática de la papelera pasado el plazo de retención.
     contacts,
   };
@@ -330,6 +347,14 @@ interface Ctx {
   /** Vacía papeleras e historial antiguo para liberar espacio. */
   freeUpSpace: () => void;
   markAllNotificationsRead: () => void;
+  /**
+   * Añade una opción a un campo de selector o etiquetas.
+   * Es operativa del día a día (crear una etiqueta al vuelo), no configuración,
+   * así que cualquier miembro puede hacerlo.
+   */
+  addFieldOption: (entity: "contactFields" | "dealFields", fieldId: string, option: string) => void;
+  /** Devuelve la plataforma al estado inicial (solo super admin). */
+  resetPlatform: () => void;
 }
 
 const CrmContext = createContext<Ctx | null>(null);
@@ -898,6 +923,41 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       ),
     }));
 
+  /**
+   * Alta de opciones al vuelo (etiquetas y selectores). Se escribe saltando la
+   * comprobación de administrador de `setState` a propósito: añadir una
+   * etiqueta mientras editas una ficha es trabajo diario, no configurar la
+   * organización. Renombrar, reordenar o borrar opciones sigue siendo de Ajustes.
+   */
+  const addFieldOption: Ctx["addFieldOption"] = (entity, fieldId, option) => {
+    const value = option.trim();
+    if (!value) return;
+    setInternal((r) => {
+      const id = r.currentTenantId;
+      const t = id ? r.tenants[id] : null;
+      if (!id || !t) return r;
+      const list = t.state[entity].map((f) =>
+        f.id === fieldId && !(f.options ?? []).includes(value)
+          ? { ...f, options: [...(f.options ?? []), value] }
+          : f,
+      );
+      return { ...r, tenants: { ...r.tenants, [id]: { ...t, state: { ...t.state, [entity]: list } } } };
+    });
+  };
+
+  /** Vuelve al estado de fábrica: una sola organización precargada. */
+  const resetPlatform = () =>
+    setInternal((r) => {
+      if (!r.users.find((u) => u.id === r.currentUserId)?.superAdmin) return r;
+      const fresh = seedRootState();
+      const me = r.users.find((u) => u.id === r.currentUserId)!;
+      // El super admin que ejecuta la acción nunca se queda fuera de la plataforma.
+      const users = fresh.users.some((u) => u.id === me.id)
+        ? fresh.users
+        : [...fresh.users, { ...me, memberships: [] }];
+      return { ...fresh, users, currentUserId: me.id, currentTenantId: null, supportMode: false };
+    });
+
   return (
     <CrmContext.Provider
       value={{
@@ -943,6 +1003,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         storageError,
         exportBackup,
         freeUpSpace,
+        addFieldOption,
+        resetPlatform,
       }}
     >
       {children}

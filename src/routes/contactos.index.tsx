@@ -12,6 +12,9 @@ import {
   Upload,
   X,
   Users,
+  Columns3,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
@@ -64,7 +67,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import type { Contact, FieldValues, SavedView } from "@/lib/crm/types";
+import type { Contact, FieldDef, FieldValues, SavedView } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/contactos/")({
   head: () => ({
@@ -81,11 +84,26 @@ export const Route = createFileRoute("/contactos/")({
 const DEFAULT_PAGE_SIZE = 10;
 
 function ContactosPage() {
-  const { state, setState, user, tenantUsers } = useCrm();
+  const { state, setState, user, tenantUsers, updatePrefs } = useCrm();
   const contactsApi = useContacts();
   const navigate = useNavigate();
   const fields = state.contactFields;
-  const quick = fields.filter((f) => f.showInQuickView);
+  // Columnas visibles: preferencia por usuario; si no la hay, los campos
+  // marcados como vista rápida en Ajustes.
+  const defaultColumns = useMemo(
+    () => fields.filter((f) => f.showInQuickView).map((f) => f.id),
+    [fields],
+  );
+  const [columns, setColumns] = useState<string[] | null>(null);
+  const columnIds = useMemo(() => {
+    const stored = columns ?? user?.prefs?.contactColumns ?? null;
+    const list = (stored ?? defaultColumns).filter((id) => fields.some((f) => f.id === id));
+    return list.length ? list : defaultColumns;
+  }, [columns, user?.prefs?.contactColumns, defaultColumns, fields]);
+  const quick = useMemo(
+    () => columnIds.map((id) => fields.find((f) => f.id === id)!).filter(Boolean),
+    [columnIds, fields],
+  );
   const status = statusField(fields);
   const owner = ownerField(fields);
   const emailField = emailRoleField(fields);
@@ -165,6 +183,7 @@ function ContactosPage() {
     setFilters(v.filters.map((f) => ({ ...f })));
     setSortBy(v.sortBy ?? "");
     setSortDir(v.sortDir ?? "asc");
+    if (v.columns?.length) setColumns(v.columns);
     setPage(0);
   };
 
@@ -186,6 +205,7 @@ function ContactosPage() {
         userId: user.id,
         query: q,
         filters: activeFilters.map((f) => ({ ...f })),
+        columns: columnIds,
         ...(sortBy ? { sortBy, sortDir } : {}),
       };
       setState((s) => ({ ...s, savedViews: [...s.savedViews, view] }));
@@ -527,6 +547,20 @@ function ContactosPage() {
       )}
 
       <div className="overflow-x-auto rounded-xl border bg-card">
+        <div className="flex justify-end border-b p-2">
+          <ColumnPicker
+            fields={fields}
+            columns={columnIds}
+            onChange={(next) => {
+              setColumns(next);
+              updatePrefs({ contactColumns: next });
+            }}
+            onReset={() => {
+              setColumns(defaultColumns);
+              updatePrefs({ contactColumns: defaultColumns });
+            }}
+          />
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-left">
@@ -805,5 +839,95 @@ function ContactRow({
         )}
       </td>
     </tr>
+  );
+}
+
+/**
+ * Selector de columnas visibles y su orden, desde el propio listado.
+ * Se guarda por usuario y queda recogido también en las vistas guardadas.
+ */
+function ColumnPicker({
+  fields,
+  columns,
+  onChange,
+  onReset,
+}: {
+  fields: FieldDef[];
+  columns: string[];
+  onChange: (next: string[]) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const visible = columns
+    .map((id) => fields.find((f) => f.id === id))
+    .filter((f): f is FieldDef => Boolean(f));
+  const hidden = fields.filter((f) => !columns.includes(f.id));
+
+  const move = (index: number, dir: -1 | 1) => {
+    const to = index + dir;
+    if (to < 0 || to >= columns.length) return;
+    const list = [...columns];
+    const [m] = list.splice(index, 1);
+    list.splice(to, 0, m!);
+    onChange(list);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Columns3 className="mr-1 h-4 w-4" /> Columnas
+      </Button>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Columnas del listado</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          {visible.map((f, i) => (
+            <div key={f.id} className="flex items-center gap-2 rounded-lg border p-2 text-sm">
+              <span className="flex-1 truncate">{f.label}</span>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={i === 0} onClick={() => move(i, -1)}>
+                ↑
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                disabled={i === visible.length - 1}
+                onClick={() => move(i, 1)}
+              >
+                ↓
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                disabled={visible.length === 1}
+                onClick={() => onChange(columns.filter((id) => id !== f.id))}
+              >
+                <EyeOff className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        {hidden.length > 0 && (
+          <div className="space-y-1.5 border-t pt-3">
+            <p className="text-xs text-muted-foreground">Campos ocultos</p>
+            {hidden.map((f) => (
+              <div key={f.id} className="flex items-center gap-2 rounded-lg border border-dashed p-2 text-sm">
+                <span className="flex-1 truncate text-muted-foreground">{f.label}</span>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onChange([...columns, f.id])}>
+                  <Eye className="mr-1 h-3.5 w-3.5" /> Mostrar
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onReset}>
+            Restablecer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

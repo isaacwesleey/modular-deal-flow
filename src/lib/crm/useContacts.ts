@@ -1,7 +1,9 @@
 import { useCrm } from "./store";
 import { uid } from "./defaults";
 import { diffValues } from "./activity";
-import { ownerField, statusField } from "./roles";
+import { toast } from "sonner";
+import { ownerField, recordTitle, statusField } from "./roles";
+import { dealFromRule } from "./intake";
 import type { Attribution, Contact, FieldValues } from "./types";
 
 /**
@@ -82,12 +84,29 @@ export function useContacts() {
     const f = statusField(fields);
     if (!f) return;
     const before = new Map(ids.map((id) => [id, String(state.contacts.find((c) => c.id === id)?.values[f.id] ?? "—")]));
-    setState((s) => ({
-      ...s,
-      contacts: s.contacts.map((c) =>
+    const created: { contactId: string; dealId: string; stage: string; label: string }[] = [];
+    setState((s) => {
+      const contacts = s.contacts.map((c) =>
         ids.includes(c.id) ? { ...c, values: { ...c.values, [f.id]: value } } : c,
-      ),
-    }));
+      );
+      let next = { ...s, contacts };
+      // Regla configurable: al pasar al estado elegido se crea la oportunidad.
+      for (const id of ids) {
+        if (before.get(id) === value) continue;
+        const contact = contacts.find((c) => c.id === id);
+        if (!contact) continue;
+        const deal = dealFromRule(next, contact, value);
+        if (!deal) continue;
+        next = { ...next, deals: [deal, ...next.deals] };
+        created.push({
+          contactId: id,
+          dealId: deal.id,
+          stage: next.stages.find((st) => st.id === deal.stageId)?.name ?? "",
+          label: recordTitle(next.contactFields, contact.values),
+        });
+      }
+      return next;
+    });
     logEvents(
       ids
         .filter((id) => before.get(id) !== value)
@@ -99,6 +118,22 @@ export function useContacts() {
           to: value,
         })),
     );
+    if (created.length) {
+      logEvents(
+        created.map((c) => ({
+          type: "deal.auto" as const,
+          contactId: c.contactId,
+          dealId: c.dealId,
+          label: c.label,
+          to: c.stage,
+        })),
+      );
+      toast.success(
+        created.length === 1
+          ? `Oportunidad creada en “${created[0]!.stage}”`
+          : `${created.length} oportunidades creadas por la regla`,
+      );
+    }
   };
 
   const setOwner = (ids: string[], userId: string) => {

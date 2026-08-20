@@ -1,4 +1,32 @@
-import type { Contact, CrmState, Deal, FieldDef, FieldValues } from "./types";
+import type { Contact, CrmState, Deal, FieldDef, FieldValues, Pipeline, Stage } from "./types";
+
+/* ------------------------- Embudos (pipelines) ------------------------- */
+
+/** Lista de embudos garantizando siempre al menos uno. */
+export function pipelines(state: CrmState): Pipeline[] {
+  return state.pipelines?.length ? state.pipelines : [{ id: "pl-ventas", name: "Ventas" }];
+}
+
+export function defaultPipelineId(state: CrmState): string {
+  return pipelines(state)[0]!.id;
+}
+
+/** Etapas de un embudo concreto (las etapas sin embudo caen en el primero). */
+export function pipelineStages(state: CrmState, pipelineId: string): Stage[] {
+  const first = defaultPipelineId(state);
+  return state.stages.filter((s) => (s.pipelineId ?? first) === pipelineId);
+}
+
+/** Embudo al que pertenece una oportunidad (por su etapa si falta el dato). */
+export function dealPipelineId(state: CrmState, deal: Deal): string {
+  if (deal.pipelineId) return deal.pipelineId;
+  const stage = state.stages.find((s) => s.id === deal.stageId);
+  return stage?.pipelineId ?? defaultPipelineId(state);
+}
+
+export function pipelineName(state: CrmState, pipelineId: string): string {
+  return pipelines(state).find((p) => p.id === pipelineId)?.name ?? "Sin embudo";
+}
 
 /** Campo marcado como título/nombre (con fallback al primer campo). */
 export function titleField(fields: FieldDef[]): FieldDef | undefined {
@@ -96,4 +124,12 @@ export function isProtectedField(f: FieldDef): boolean {
 export function orphanDeals(state: CrmState): Deal[] {
   const ids = new Set(state.stages.map((s) => s.id));
   return state.deals.filter((d) => !ids.has(d.stageId) && !d.deletedAt);
+}
+
+/** Oportunidades abiertas de un contacto (fuera de etapas de cierre). */
+export function openContactDeals(state: CrmState, contactId: string): Deal[] {
+  return contactDeals(state, contactId).filter((d) => {
+    const stage = state.stages.find((s) => s.id === d.stageId);
+    return !stage || !/ganad|perdid|cerrad|entregad/i.test(stage.name);
+  });
 }
