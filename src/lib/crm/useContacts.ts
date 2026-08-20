@@ -66,13 +66,15 @@ export function useContacts() {
       ),
     }));
     logEvents(
-      ids.map((id) => ({
-        type: "contact.status" as const,
-        contactId: id,
-        label: f.label,
-        from: before.get(id) || "—",
-        to: value,
-      })),
+      ids
+        .filter((id) => before.get(id) !== value)
+        .map((id) => ({
+          type: "contact.status" as const,
+          contactId: id,
+          label: f.label,
+          from: before.get(id) || "—",
+          to: value,
+        })),
     );
   };
 
@@ -87,13 +89,15 @@ export function useContacts() {
       ),
     }));
     logEvents(
-      ids.map((id) => ({
-        type: "contact.owner" as const,
-        contactId: id,
-        label: f.label,
-        from: before.get(id) || "Sin asignar",
-        to: userName(userId),
-      })),
+      ids
+        .filter((id) => before.get(id) !== userName(userId))
+        .map((id) => ({
+          type: "contact.owner" as const,
+          contactId: id,
+          label: f.label,
+          from: before.get(id) || "Sin asignar",
+          to: userName(userId),
+        })),
     );
   };
 
