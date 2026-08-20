@@ -1,4 +1,6 @@
-import type { CrmState, RootState, Tenant, User } from "./types";
+import type { ActivityEvent, Attribution, CrmState, RootState, Tenant, User } from "./types";
+
+export const DEFAULT_PASSWORD = "acceso1234";
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -14,6 +16,7 @@ export const FIELD_TYPE_LABELS: Record<string, string> = {
   checkbox: "Casilla",
   currency: "Moneda",
   url: "URL",
+  user: "Usuario del equipo",
 };
 
 export const BRAND_COLORS = [
@@ -38,6 +41,49 @@ const daysAgo = (d: number) => {
   return x.toISOString();
 };
 
+/** Atribuciones variadas para que el bloque de origen nunca se vea vacío. */
+const ATTRIBUTIONS: Attribution[] = [
+  {
+    utmSource: "meta",
+    utmMedium: "paid_social",
+    utmCampaign: "leads-primavera",
+    utmContent: "carrusel-a",
+    referrer: "https://www.facebook.com/",
+    landingPage: "/landing/rediseno-web",
+    device: "móvil",
+  },
+  {
+    utmSource: "google",
+    utmMedium: "cpc",
+    utmCampaign: "marca-generica",
+    utmTerm: "agencia diseño web",
+    referrer: "https://www.google.com/",
+    landingPage: "/",
+    device: "escritorio",
+  },
+  {
+    utmSource: "google",
+    utmMedium: "organic",
+    referrer: "https://www.google.com/",
+    landingPage: "/blog/como-elegir-agencia",
+    device: "escritorio",
+  },
+  {
+    utmSource: "referido",
+    utmMedium: "partner",
+    utmCampaign: "programa-partners",
+    referrer: "https://estudiolf.com/recursos",
+    landingPage: "/precios",
+    device: "tablet",
+  },
+  {
+    utmSource: "directo",
+    utmMedium: "none",
+    landingPage: "/",
+    device: "escritorio",
+  },
+];
+
 export function defaultState(): CrmState {
   const stages = [
     { id: "s1", name: "Nuevo lead", color: "oklch(0.72 0.13 250)" },
@@ -50,13 +96,14 @@ export function defaultState(): CrmState {
 
   const contacts = [
     { id: "c1", nombre: "Lucía Fernández", email: "lucia@estudiolf.com", telefono: "+34 611 223 344", empresa: "Estudio LF", etiquetas: ["VIP"], estado: "Cliente" },
-    { id: "c2", nombre: "Marc Puig", email: "marc@puigdigital.es", telefono: "+34 622 111 900", empresa: "Puig Digital", etiquetas: ["Web"], estado: "Lead" },
-    { id: "c3", nombre: "Ana Ruiz", email: "ana.ruiz@gmail.com", telefono: "+34 633 555 010", empresa: "Freelance", etiquetas: ["Newsletter", "Web"], estado: "Lead" },
+    { id: "c2", nombre: "Marc Puig", email: "marc@puigdigital.es", telefono: "+34 622 111 900", empresa: "Puig Digital", etiquetas: ["Web"], estado: "Contactado" },
+    { id: "c3", nombre: "Ana Ruiz", email: "ana.ruiz@gmail.com", telefono: "+34 633 555 010", empresa: "Freelance", etiquetas: ["Newsletter", "Web"], estado: "Nuevo" },
     { id: "c4", nombre: "Diego Salas", email: "diego@casasalas.com", telefono: "+34 644 777 121", empresa: "Casa Salas", etiquetas: ["VIP", "Referido"], estado: "Cliente" },
-    { id: "c5", nombre: "Nora Vidal", email: "nora@vidalco.com", telefono: "+34 655 909 300", empresa: "Vidal & Co", etiquetas: [], estado: "Perdido" },
+    { id: "c5", nombre: "Nora Vidal", email: "nora@vidalco.com", telefono: "+34 655 909 300", empresa: "Vidal & Co", etiquetas: [], estado: "Cualificado" },
   ].map((c, i) => ({
     id: c.id,
     createdAt: daysAgo(i * 3 + 1),
+    attribution: { ...ATTRIBUTIONS[i % ATTRIBUTIONS.length]!, firstSeenAt: daysAgo(i * 3 + 2) },
     values: {
       nombre: c.nombre,
       email: c.email,
@@ -64,6 +111,7 @@ export function defaultState(): CrmState {
       empresa: c.empresa,
       etiquetas: c.etiquetas,
       estado: c.estado,
+      propietario: i % 2 === 0 ? "u-admin" : "u-user",
     },
   }));
 
@@ -100,7 +148,8 @@ export function defaultState(): CrmState {
       { id: "email", label: "Email", type: "email", showInQuickView: true },
       { id: "telefono", label: "Teléfono", type: "phone", showInQuickView: true },
       { id: "empresa", label: "Empresa", type: "text", showInQuickView: true },
-      { id: "estado", label: "Estado", type: "select", options: ["Lead", "Cliente", "Perdido"], showInQuickView: true },
+      { id: "estado", label: "Estado", type: "select", options: ["Nuevo", "Contactado", "Cualificado", "Cliente", "Perdido"], showInQuickView: true, role: "status" },
+      { id: "propietario", label: "Propietario", type: "user", showInQuickView: true, role: "owner" },
       { id: "etiquetas", label: "Etiquetas", type: "multiselect", options: ["VIP", "Web", "Newsletter", "Referido"], showInQuickView: false },
     ],
     dealFields: [
@@ -131,9 +180,18 @@ export function defaultState(): CrmState {
       { id: "b4", type: "ultimos-contactos" },
       { id: "b5", type: "actividad" },
     ],
+    events: contacts.map<ActivityEvent>((c, i) => ({
+      id: `ev-${c.id}`,
+      at: c.createdAt,
+      type: "contact.created",
+      actorId: i % 2 === 0 ? "u-admin" : "u-user",
+      actorName: i % 2 === 0 ? "Elena Admin" : "Iván Comercial",
+      contactId: c.id,
+    })),
+    savedViews: [],
   };
 }
-/* ---------------- Multi tenant: usuarios, organizaciones y demo ---------------- */
+/* ---------------- Multi tenant: usuarios y organizaciones precargadas ---------------- */
 
 export function emptyTenantState(companyName: string, brandIndex = 0): CrmState {
   const s = defaultState();
@@ -144,6 +202,8 @@ export function emptyTenantState(companyName: string, brandIndex = 0): CrmState 
     deals: [],
     tasks: [],
     notes: [],
+    events: [],
+    savedViews: [],
   };
 }
 
@@ -151,7 +211,7 @@ export function makeTenant(name: string, state: CrmState): Tenant {
   return { id: uid(), name, createdAt: new Date().toISOString(), state };
 }
 
-/** Segunda organización de demo, con datos, campos, marca y módulos distintos. */
+/** Segunda organización precargada, con datos, campos, marca y módulos distintos. */
 function studioNorteState(): CrmState {
   const base = defaultState();
   return {
@@ -169,6 +229,8 @@ function studioNorteState(): CrmState {
       { id: "email", label: "Email", type: "email", showInQuickView: true },
       { id: "ciudad", label: "Ciudad", type: "text", showInQuickView: true },
       { id: "sector", label: "Sector", type: "select", options: ["Retail", "Hostelería", "Oficinas"], showInQuickView: true },
+      { id: "fase", label: "Fase", type: "select", options: ["Solicitud", "Visitado", "Presupuestado", "Cliente"], showInQuickView: true, role: "status" },
+      { id: "responsable", label: "Responsable", type: "user", showInQuickView: true, role: "owner" },
     ],
     dealFields: [
       { id: "titulo", label: "Proyecto", type: "text", core: true, showInQuickView: true, role: "title" },
@@ -176,9 +238,9 @@ function studioNorteState(): CrmState {
       { id: "m2", label: "Metros cuadrados", type: "number", showInQuickView: true },
     ],
     contacts: [
-      { id: "sc1", createdAt: daysAgo(2), values: { nombre: "Bar Aurora", email: "hola@baraurora.es", ciudad: "Bilbao", sector: "Hostelería" } },
-      { id: "sc2", createdAt: daysAgo(6), values: { nombre: "Óptica Zubi", email: "info@opticazubi.com", ciudad: "Donostia", sector: "Retail" } },
-      { id: "sc3", createdAt: daysAgo(11), values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", ciudad: "Bilbao", sector: "Oficinas" } },
+      { id: "sc1", createdAt: daysAgo(2), attribution: { ...ATTRIBUTIONS[0]!, firstSeenAt: daysAgo(3) }, values: { nombre: "Bar Aurora", email: "hola@baraurora.es", ciudad: "Bilbao", sector: "Hostelería", fase: "Solicitud", responsable: "u-norte" } },
+      { id: "sc2", createdAt: daysAgo(6), attribution: { ...ATTRIBUTIONS[2]!, firstSeenAt: daysAgo(7) }, values: { nombre: "Óptica Zubi", email: "info@opticazubi.com", ciudad: "Donostia", sector: "Retail", fase: "Presupuestado", responsable: "u-norte" } },
+      { id: "sc3", createdAt: daysAgo(11), attribution: { ...ATTRIBUTIONS[3]!, firstSeenAt: daysAgo(12) }, values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", ciudad: "Bilbao", sector: "Oficinas", fase: "Cliente", responsable: "u-admin" } },
     ],
     deals: [
       { id: "sd1", createdAt: daysAgo(2), stageId: "n2", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
@@ -195,18 +257,24 @@ function studioNorteState(): CrmState {
       { id: "sb2", type: "pipeline-resumen" },
       { id: "sb3", type: "tareas-hoy" },
     ],
+    events: [
+      { id: "sev1", at: daysAgo(2), type: "contact.created", actorId: "u-norte", actorName: "Aitor Norte", contactId: "sc1" },
+      { id: "sev2", at: daysAgo(6), type: "contact.created", actorId: "u-norte", actorName: "Aitor Norte", contactId: "sc2" },
+      { id: "sev3", at: daysAgo(11), type: "contact.created", actorId: "u-admin", actorName: "Elena Admin", contactId: "sc3" },
+    ],
+    savedViews: [],
   };
 }
 
-export function demoRootState(): RootState {
+export function seedRootState(): RootState {
   const t1: Tenant = { id: "acme", name: "Mi Empresa", createdAt: daysAgo(40), state: defaultState() };
   const t2: Tenant = { id: "norte", name: "Studio Norte", createdAt: daysAgo(15), state: studioNorteState() };
 
   const users: User[] = [
-    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: "demo1234", superAdmin: true, memberships: [] },
-    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: "demo1234", memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
-    { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: "demo1234", memberships: [{ tenantId: t1.id, role: "user" }] },
-    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: "demo1234", memberships: [{ tenantId: t2.id, role: "admin" }] },
+    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: DEFAULT_PASSWORD, superAdmin: true, memberships: [] },
+    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
+    { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t1.id, role: "user" }] },
+    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t2.id, role: "admin" }] },
   ];
 
   return {

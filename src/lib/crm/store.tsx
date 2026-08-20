@@ -6,9 +6,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { defaultState, demoRootState, emptyTenantState, uid } from "./defaults";
+import { DEFAULT_PASSWORD, defaultState, emptyTenantState, seedRootState, uid } from "./defaults";
 import { brandForeground } from "./contrast";
+import { captureAttribution } from "./attribution";
+import { TRASH_DAYS } from "./roles";
 import type {
+  ActivityEvent,
   CrmState,
   FieldDef,
   Membership,
@@ -46,11 +49,18 @@ function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
 }
 
 function migrateTenantState(s: CrmState): CrmState {
+  const cutoff = Date.now() - TRASH_DAYS * 86400000;
   return {
     ...defaultState(),
     ...s,
     contactFields: ensureRoles(s.contactFields ?? [], false),
     dealFields: ensureRoles(s.dealFields ?? [], true),
+    events: s.events ?? [],
+    savedViews: s.savedViews ?? [],
+    // Purga automática de la papelera pasado el plazo de retención.
+    contacts: (s.contacts ?? []).filter(
+      (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
+    ),
   };
 }
 
@@ -65,13 +75,13 @@ function loadRoot(): RootState {
         const state = migrateTenantState(t.state);
         tenants[id] = { ...t, name: state.branding.companyName.trim() || t.name, state };
       }
-      return { ...demoRootState(), ...parsed, tenants };
+      return { ...seedRootState(), ...parsed, tenants };
     }
   } catch {
     /* ignore */
   }
 
-  const root = demoRootState();
+  const root = seedRootState();
   try {
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
@@ -87,7 +97,7 @@ function loadRoot(): RootState {
         id: uid(),
         name: "Propietario",
         email: "propietario@miempresa.com",
-        password: "demo1234",
+        password: DEFAULT_PASSWORD,
         memberships: [{ tenantId: id, role: "admin" }],
       };
       root.tenants = { [id]: tenant, ...root.tenants };
@@ -110,6 +120,12 @@ interface Ctx {
 
   root: RootState;
   setRoot: (updater: (r: RootState) => RootState) => void;
+  /** Usuarios que pertenecen a la organización activa. */
+  tenantUsers: User[];
+  /** Registra una o varias entradas en el historial de la organización. */
+  logEvents: (
+    entries: Array<Omit<ActivityEvent, "id" | "at" | "actorId" | "actorName"> & { at?: string }>,
+  ) => void;
 
   user: User | null;
   tenant: Tenant | null;
@@ -136,12 +152,14 @@ interface Ctx {
 const CrmContext = createContext<Ctx | null>(null);
 
 export function CrmProvider({ children }: { children: ReactNode }) {
-  const [root, setInternal] = useState<RootState>(() => demoRootState());
+  const [root, setInternal] = useState<RootState>(() => seedRootState());
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setInternal(loadRoot());
     setHydrated(true);
+    // Captura de origen (UTMs, referrer, página de entrada) al llegar el visitante.
+    captureAttribution();
   }, []);
 
   useEffect(() => {
@@ -179,6 +197,11 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       .filter((t): t is Tenant => Boolean(t));
   }, [user, root.tenants]);
 
+  const tenantUsers = useMemo(() => {
+    if (!tenant) return [];
+    return root.users.filter((u) => u.memberships.some((m) => m.tenantId === tenant.id));
+  }, [root.users, tenant]);
+
   const fallback = useMemo(() => defaultState(), []);
   const state = tenant?.state ?? fallback;
 
@@ -194,12 +217,38 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       return { ...r, tenants: { ...r.tenants, [id]: { ...t, name, state: next } } };
     });
 
+  /** Historial: siempre sella quién y cuándo, nunca es decorativo. */
+  const logEvents: Ctx["logEvents"] = (entries) => {
+    if (!entries.length) return;
+    setInternal((r) => {
+      const id = r.currentTenantId;
+      const t = id ? r.tenants[id] : null;
+      if (!id || !t) return r;
+      const actor = r.users.find((u) => u.id === r.currentUserId);
+      const now = new Date().toISOString();
+      const events: ActivityEvent[] = entries.map((e) => ({
+        ...e,
+        id: uid(),
+        at: e.at ?? now,
+        ...(actor ? { actorId: actor.id } : {}),
+        actorName: actor?.name ?? "Sistema",
+      }));
+      return {
+        ...r,
+        tenants: {
+          ...r.tenants,
+          [id]: { ...t, state: { ...t.state, events: [...events, ...t.state.events] } },
+        },
+      };
+    });
+  };
+
   const reset = () =>
     setInternal((r) => {
       const id = r.currentTenantId;
       const t = id ? r.tenants[id] : null;
       if (!id || !t) return r;
-      // Restaura los datos de ejemplo pero conserva la identidad del tenant
+      // Restablece los datos base pero conserva la identidad del tenant
       // (nombre, logo, color de marca y tema).
       const fresh = defaultState();
       return {
@@ -335,6 +384,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         hydrated,
         root,
         setRoot,
+        tenantUsers,
+        logEvents,
         user,
         tenant,
         role,

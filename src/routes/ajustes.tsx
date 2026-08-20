@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { GripVertical, Plus, Trash2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
-import { BRAND_COLORS, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
+import { BRAND_COLORS, DEFAULT_PASSWORD, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
 import { isProtectedField } from "@/lib/crm/roles";
 import { AccessDenied, PageHeader } from "@/components/crm/Layout";
 import { toast } from "sonner";
@@ -58,17 +58,17 @@ function AjustesPage() {
     <>
       <PageHeader
         title="Ajustes"
-        subtitle="Todo se guarda en tu navegador (localStorage). Sin backend."
+        subtitle="Configura módulos, campos, etapas, marca y equipo de tu organización."
         action={
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline">
-                <RotateCcw className="mr-1 h-4 w-4" /> Restaurar demo
+                <RotateCcw className="mr-1 h-4 w-4" /> Restablecer espacio de trabajo
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>¿Restaurar los datos de demo?</AlertDialogTitle>
+                <AlertDialogTitle>¿Restablecer el espacio de trabajo?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Se borrarán todos tus contactos, oportunidades, tareas, notas, campos
                   personalizados y ajustes de marca. Esta acción no se puede deshacer.
@@ -76,7 +76,7 @@ function AjustesPage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={reset}>Sí, restaurar</AlertDialogAction>
+                <AlertDialogAction onClick={reset}>Sí, restablecer</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -169,14 +169,14 @@ function UsersEditor() {
               id: uid(),
               name: name.trim() || mail.split("@")[0]!,
               email: mail,
-              password: "demo1234",
+              password: DEFAULT_PASSWORD,
               memberships: [{ tenantId: tenant.id, role }],
             },
           ],
     }));
     setEmail("");
     setName("");
-    toast.success("Invitación creada (contraseña inicial: demo1234)");
+    toast.success(`Usuario añadido (contraseña inicial: ${DEFAULT_PASSWORD})`);
   };
 
   const changeRole = (userId: string, newRole: "admin" | "user") =>
@@ -427,6 +427,16 @@ function FieldEditor({
                   {isDeal && (
                     <SelectItem value="amount" disabled={f.type !== "currency" && f.type !== "number"}>
                       Importe
+                    </SelectItem>
+                  )}
+                  {!isDeal && (
+                    <SelectItem value="status" disabled={f.type !== "select"}>
+                      Estado del lead
+                    </SelectItem>
+                  )}
+                  {!isDeal && (
+                    <SelectItem value="owner" disabled={f.type !== "user"}>
+                      Propietario
                     </SelectItem>
                   )}
                 </SelectContent>

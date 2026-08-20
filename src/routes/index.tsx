@@ -3,7 +3,7 @@ import { useState } from "react";
 import { GripVertical, X, Plus, TrendingUp } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
-import { amountField, recordTitle, sumDeals } from "@/lib/crm/roles";
+import { activeContacts, amountField, recordTitle, sumDeals } from "@/lib/crm/roles";
 import { PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -195,7 +195,7 @@ function BlockBody({ block }: { block: DashboardBlock }) {
   }
 
   if (block.type === "ultimos-contactos") {
-    const list = [...state.contacts]
+    const list = [...activeContacts(state)]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 5);
     return (
@@ -223,7 +223,7 @@ function BlockBody({ block }: { block: DashboardBlock }) {
   if (block.type === "actividad") {
     const items = [
       ...state.notes.map((n) => ({ at: n.createdAt, text: `Nota: ${n.text.slice(0, 60)}` })),
-      ...state.contacts.map((c) => ({
+      ...activeContacts(state).map((c) => ({
         at: c.createdAt,
         text: `Contacto añadido: ${recordTitle(state.contactFields, c.values, "Sin nombre")}`,
       })),
@@ -255,7 +255,7 @@ function BlockBody({ block }: { block: DashboardBlock }) {
       : metric === "valor-pipeline"
         ? eur(sumDeals(state.dealFields, state.deals))
         : metric === "contactos"
-          ? String(state.contacts.length)
+          ? String(activeContacts(state).length)
           : String(state.tasks.filter((t) => !t.done).length);
 
   type Metric = "deals-ganados" | "valor-pipeline" | "contactos" | "tareas-pendientes";

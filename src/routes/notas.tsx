@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
-import { recordTitle } from "@/lib/crm/roles";
+import { activeContacts, recordTitle } from "@/lib/crm/roles";
 import { uid } from "@/lib/crm/defaults";
 import { ModuleOff, PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ function NotasPage() {
 
   const label = (t?: string, id?: string) => {
     if (t === "contact") {
-      const c = state.contacts.find((x) => x.id === id);
+      const c = activeContacts(state).find((x) => x.id === id);
       return c ? `👤 ${recordTitle(state.contactFields, c.values, "Sin nombre")}` : "";
     }
     if (t === "deal") {
@@ -85,7 +85,7 @@ function NotasPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none:">Sin asociar</SelectItem>
-              {state.contacts.map((c) => (
+              {activeContacts(state).map((c) => (
                 <SelectItem key={c.id} value={`contact:${c.id}`}>
                   👤 {recordTitle(state.contactFields, c.values, "Sin nombre")}
                 </SelectItem>

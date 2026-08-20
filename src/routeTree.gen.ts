@@ -13,10 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ContactosRouteImport } from './routes/contactos'
 import { Route as NotasRouteImport } from './routes/notas'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as TareasRouteImport } from './routes/tareas'
+import { Route as ContactosIndexRouteImport } from './routes/contactos.index'
+import { Route as ContactosIdRouteImport } from './routes/contactos.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -38,11 +39,6 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContactosRoute = ContactosRouteImport.update({
-  id: '/contactos',
-  path: '/contactos',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const NotasRoute = NotasRouteImport.update({
   id: '/notas',
   path: '/notas',
@@ -58,26 +54,38 @@ const TareasRoute = TareasRouteImport.update({
   path: '/tareas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactosIndexRoute = ContactosIndexRouteImport.update({
+  id: '/contactos/',
+  path: '/contactos/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactosIdRoute = ContactosIdRouteImport.update({
+  id: '/contactos/$id',
+  path: '/contactos/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/contactos': typeof ContactosRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
   '/tareas': typeof TareasRoute
+  '/contactos/$id': typeof ContactosIdRoute
+  '/contactos/': typeof ContactosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/contactos': typeof ContactosRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
   '/tareas': typeof TareasRoute
+  '/contactos/$id': typeof ContactosIdRoute
+  '/contactos': typeof ContactosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,10 +93,11 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
-  '/contactos': typeof ContactosRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
   '/tareas': typeof TareasRoute
+  '/contactos/$id': typeof ContactosIdRoute
+  '/contactos/': typeof ContactosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,30 +106,33 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
-    | '/contactos'
     | '/notas'
     | '/pipeline'
     | '/tareas'
+    | '/contactos/$id'
+    | '/contactos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
     | '/ajustes'
     | '/auth'
-    | '/contactos'
     | '/notas'
     | '/pipeline'
     | '/tareas'
+    | '/contactos/$id'
+    | '/contactos'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/ajustes'
     | '/auth'
-    | '/contactos'
     | '/notas'
     | '/pipeline'
     | '/tareas'
+    | '/contactos/$id'
+    | '/contactos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -128,10 +140,11 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AjustesRoute: typeof AjustesRoute
   AuthRoute: typeof AuthRoute
-  ContactosRoute: typeof ContactosRoute
   NotasRoute: typeof NotasRoute
   PipelineRoute: typeof PipelineRoute
   TareasRoute: typeof TareasRoute
+  ContactosIdRoute: typeof ContactosIdRoute
+  ContactosIndexRoute: typeof ContactosIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -164,13 +177,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/contactos': {
-      id: '/contactos'
-      path: '/contactos'
-      fullPath: '/contactos'
-      preLoaderRoute: typeof ContactosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/notas': {
       id: '/notas'
       path: '/notas'
@@ -192,6 +198,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TareasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contactos/': {
+      id: '/contactos/'
+      path: '/contactos'
+      fullPath: '/contactos/'
+      preLoaderRoute: typeof ContactosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contactos/$id': {
+      id: '/contactos/$id'
+      path: '/contactos/$id'
+      fullPath: '/contactos/$id'
+      preLoaderRoute: typeof ContactosIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -200,10 +220,11 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AjustesRoute: AjustesRoute,
   AuthRoute: AuthRoute,
-  ContactosRoute: ContactosRoute,
   NotasRoute: NotasRoute,
   PipelineRoute: PipelineRoute,
   TareasRoute: TareasRoute,
+  ContactosIdRoute: ContactosIdRoute,
+  ContactosIndexRoute: ContactosIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
