@@ -13,9 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as NotasRouteImport } from './routes/notas'
 import { Route as PipelineRouteImport } from './routes/pipeline'
+import { Route as RecuperarRouteImport } from './routes/recuperar'
+import { Route as RestablecerRouteImport } from './routes/restablecer'
 import { Route as TareasRouteImport } from './routes/tareas'
+import { Route as VerificarRouteImport } from './routes/verificar'
 import { Route as ContactosIndexRouteImport } from './routes/contactos.index'
 import { Route as ContactosIdRouteImport } from './routes/contactos.$id'
 
@@ -39,6 +43,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvitacionRoute = InvitacionRouteImport.update({
+  id: '/invitacion',
+  path: '/invitacion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotasRoute = NotasRouteImport.update({
   id: '/notas',
   path: '/notas',
@@ -49,9 +58,24 @@ const PipelineRoute = PipelineRouteImport.update({
   path: '/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecuperarRoute = RecuperarRouteImport.update({
+  id: '/recuperar',
+  path: '/recuperar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RestablecerRoute = RestablecerRouteImport.update({
+  id: '/restablecer',
+  path: '/restablecer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TareasRoute = TareasRouteImport.update({
   id: '/tareas',
   path: '/tareas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerificarRoute = VerificarRouteImport.update({
+  id: '/verificar',
+  path: '/verificar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactosIndexRoute = ContactosIndexRouteImport.update({
@@ -70,9 +94,13 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
+  '/recuperar': typeof RecuperarRoute
+  '/restablecer': typeof RestablecerRoute
   '/tareas': typeof TareasRoute
+  '/verificar': typeof VerificarRoute
   '/contactos/$id': typeof ContactosIdRoute
   '/contactos/': typeof ContactosIndexRoute
 }
@@ -81,9 +109,13 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
+  '/recuperar': typeof RecuperarRoute
+  '/restablecer': typeof RestablecerRoute
   '/tareas': typeof TareasRoute
+  '/verificar': typeof VerificarRoute
   '/contactos/$id': typeof ContactosIdRoute
   '/contactos': typeof ContactosIndexRoute
 }
@@ -93,9 +125,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/ajustes': typeof AjustesRoute
   '/auth': typeof AuthRoute
+  '/invitacion': typeof InvitacionRoute
   '/notas': typeof NotasRoute
   '/pipeline': typeof PipelineRoute
+  '/recuperar': typeof RecuperarRoute
+  '/restablecer': typeof RestablecerRoute
   '/tareas': typeof TareasRoute
+  '/verificar': typeof VerificarRoute
   '/contactos/$id': typeof ContactosIdRoute
   '/contactos/': typeof ContactosIndexRoute
 }
@@ -106,9 +142,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/invitacion'
     | '/notas'
     | '/pipeline'
+    | '/recuperar'
+    | '/restablecer'
     | '/tareas'
+    | '/verificar'
     | '/contactos/$id'
     | '/contactos/'
   fileRoutesByTo: FileRoutesByTo
@@ -117,9 +157,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/invitacion'
     | '/notas'
     | '/pipeline'
+    | '/recuperar'
+    | '/restablecer'
     | '/tareas'
+    | '/verificar'
     | '/contactos/$id'
     | '/contactos'
   id:
@@ -128,9 +172,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ajustes'
     | '/auth'
+    | '/invitacion'
     | '/notas'
     | '/pipeline'
+    | '/recuperar'
+    | '/restablecer'
     | '/tareas'
+    | '/verificar'
     | '/contactos/$id'
     | '/contactos/'
   fileRoutesById: FileRoutesById
@@ -140,9 +188,13 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AjustesRoute: typeof AjustesRoute
   AuthRoute: typeof AuthRoute
+  InvitacionRoute: typeof InvitacionRoute
   NotasRoute: typeof NotasRoute
   PipelineRoute: typeof PipelineRoute
+  RecuperarRoute: typeof RecuperarRoute
+  RestablecerRoute: typeof RestablecerRoute
   TareasRoute: typeof TareasRoute
+  VerificarRoute: typeof VerificarRoute
   ContactosIdRoute: typeof ContactosIdRoute
   ContactosIndexRoute: typeof ContactosIndexRoute
 }
@@ -177,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invitacion': {
+      id: '/invitacion'
+      path: '/invitacion'
+      fullPath: '/invitacion'
+      preLoaderRoute: typeof InvitacionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notas': {
       id: '/notas'
       path: '/notas'
@@ -191,11 +250,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recuperar': {
+      id: '/recuperar'
+      path: '/recuperar'
+      fullPath: '/recuperar'
+      preLoaderRoute: typeof RecuperarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/restablecer': {
+      id: '/restablecer'
+      path: '/restablecer'
+      fullPath: '/restablecer'
+      preLoaderRoute: typeof RestablecerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tareas': {
       id: '/tareas'
       path: '/tareas'
       fullPath: '/tareas'
       preLoaderRoute: typeof TareasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verificar': {
+      id: '/verificar'
+      path: '/verificar'
+      fullPath: '/verificar'
+      preLoaderRoute: typeof VerificarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contactos/': {
@@ -220,9 +300,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AjustesRoute: AjustesRoute,
   AuthRoute: AuthRoute,
+  InvitacionRoute: InvitacionRoute,
   NotasRoute: NotasRoute,
   PipelineRoute: PipelineRoute,
+  RecuperarRoute: RecuperarRoute,
+  RestablecerRoute: RestablecerRoute,
   TareasRoute: TareasRoute,
+  VerificarRoute: VerificarRoute,
   ContactosIdRoute: ContactosIdRoute,
   ContactosIndexRoute: ContactosIndexRoute,
 }
