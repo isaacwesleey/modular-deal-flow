@@ -186,7 +186,11 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       const id = r.currentTenantId;
       const t = id ? r.tenants[id] : null;
       if (!id || !t) return r;
-      return { ...r, tenants: { ...r.tenants, [id]: { ...t, state: updater(t.state) } } };
+      const next = updater(t.state);
+      // Fuente de verdad única: el nombre de la organización vive en
+      // branding.companyName y se propaga a tenant.name (panel del super admin).
+      const name = next.branding.companyName.trim() || t.name;
+      return { ...r, tenants: { ...r.tenants, [id]: { ...t, name, state: next } } };
     });
 
   const reset = () =>
