@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Menu, X, ArrowRight } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
-import { VentiaLogo, VentiaMark } from "./VentiaLogo";
+import { VentiaLogo } from "./VentiaLogo";
 import { CookieBanner } from "./CookieBanner";
 
 const NAV = [
@@ -110,10 +110,7 @@ function SiteFooter() {
     <footer className="border-t border-ventia-line bg-ventia-ink text-white/80">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <span className="flex items-center gap-2">
-            <VentiaMark className="h-8 w-8" />
-            <span className="display text-lg font-bold text-white">Ventia</span>
-          </span>
+          <VentiaLogo tone="invert" />
           <p className="mt-3 max-w-xs text-sm">
             El CRM que se adapta a cómo vende tu equipo, no al revés. Sin hojas de cálculo, sin
             campos que no usas.

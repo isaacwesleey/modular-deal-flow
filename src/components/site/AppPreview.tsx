@@ -1,4 +1,4 @@
-import { Building2, GripVertical, Mail, Phone, Sparkles } from "lucide-react";
+import { Building2, GripVertical, Mail, Phone } from "lucide-react";
 
 /** Representaciones visuales de la propia app (no capturas: se dibujan aquí). */
 
@@ -99,7 +99,7 @@ export function FieldsPreview() {
   return (
     <div className={CARD}>
       <p className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <Sparkles className="h-4 w-4 text-ventia-deep" /> Tus campos, tu vocabulario
+        Tus campos, tu vocabulario
       </p>
       <div className="space-y-2">
         {fields.map((f) => (
