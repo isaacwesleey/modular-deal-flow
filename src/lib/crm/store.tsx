@@ -10,15 +10,20 @@ import { DEFAULT_PASSWORD, defaultState, emptyTenantState, seedRootState, uid } 
 import { brandForeground } from "./contrast";
 import { captureAttribution } from "./attribution";
 import { TRASH_DAYS } from "./roles";
+import { makeToken, tokenStatus, TOKEN_MESSAGES } from "./tokens";
 import type {
   ActivityEvent,
+  AppNotification,
+  AuthToken,
   CrmState,
   FieldDef,
   Membership,
+  NotificationKind,
   RootState,
   Tenant,
   TenantRole,
   User,
+  UserPrefs,
 } from "./types";
 
 const ROOT_KEY = "crm-remix-root-v2";
@@ -62,9 +67,34 @@ function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
   return list;
 }
 
+/**
+ * Migración puntual: en algunas organizaciones el rol `company` cayó sobre un
+ * campo que no era la empresa (p. ej. "Ciudad"). Se libera ese campo y se crea
+ * uno de empresa propio para que la cabecera de la ficha muestre lo correcto.
+ */
+function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
+  const wrong = fields.find(
+    (f) => f.role === "company" && !/empresa|compañ|company|negocio/i.test(f.label),
+  );
+  if (!wrong) return fields;
+  const cleaned = fields.map((f) => (f.id === wrong.id ? { ...f, role: undefined } : f));
+  const existing = cleaned.find((f) => /empresa|compañ|company/i.test(f.label));
+  if (existing) return cleaned.map((f) => (f.id === existing.id ? { ...f, role: "company" as const } : f));
+  const idx = cleaned.findIndex((f) => f.id === wrong.id);
+  const empresa: FieldDef = {
+    id: "empresa",
+    label: "Empresa",
+    type: "text",
+    showInQuickView: true,
+    role: "company",
+  };
+  if (cleaned.some((f) => f.id === "empresa")) return cleaned;
+  return [...cleaned.slice(0, idx), empresa, ...cleaned.slice(idx)];
+}
+
 function migrateTenantState(s: CrmState): CrmState {
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
-  const contactFields = ensureRoles(s.contactFields ?? [], false);
+  const contactFields = fixCompanyRole(ensureRoles(s.contactFields ?? [], false));
   const contacts = (s.contacts ?? []).filter(
     (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
   );
