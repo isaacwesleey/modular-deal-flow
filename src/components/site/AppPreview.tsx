@@ -43,19 +43,19 @@ export function KanbanPreview() {
 export function LeadPreview() {
   return (
     <div className={CARD}>
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ventia-deep text-sm font-bold text-white">
           BA
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">Bar Aurora</p>
-          <p className="flex items-center gap-2 text-[11px] text-ventia-ink-soft">
-            <Building2 className="h-3 w-3" /> Grupo Aurora
-            <Mail className="h-3 w-3" /> hola@baraurora.es
-            <Phone className="h-3 w-3" /> 944 xx xx xx
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-ventia-ink-soft">
+            <span className="flex items-center gap-1"><Building2 className="h-3 w-3 shrink-0" /> Grupo Aurora</span>
+            <span className="flex min-w-0 items-center gap-1"><Mail className="h-3 w-3 shrink-0" /> <span className="truncate">hola@baraurora.es</span></span>
+            <span className="flex items-center gap-1"><Phone className="h-3 w-3 shrink-0" /> 944 xx xx xx</span>
           </p>
         </div>
-        <span className="ml-auto rounded-full bg-ventia-accent/20 px-2 py-0.5 text-[11px] font-semibold text-ventia-ink">
+        <span className="ml-auto shrink-0 rounded-full bg-ventia-accent/20 px-2 py-0.5 text-[11px] font-semibold text-ventia-ink">
           Presupuestado
         </span>
       </div>
@@ -66,8 +66,8 @@ export function LeadPreview() {
           ["Dispositivo", "Móvil"],
         ].map(([k, v]) => (
           <div key={k} className="flex justify-between gap-3">
-            <span className="text-ventia-ink-soft">{k}</span>
-            <span className="truncate font-medium">{v}</span>
+            <span className="shrink-0 text-ventia-ink-soft">{k}</span>
+            <span className="min-w-0 truncate text-right font-medium">{v}</span>
           </div>
         ))}
       </div>

@@ -15,7 +15,7 @@ import {
   uid,
 } from "./defaults";
 import { brandForeground } from "./contrast";
-import { captureAttribution } from "./attribution";
+import { syncAttributionConsent } from "./attribution";
 import { TRASH_DAYS } from "./roles";
 import { makeToken, tokenStatus, TOKEN_MESSAGES } from "./tokens";
 import type {
@@ -298,8 +298,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setInternal(loadRoot());
     setHydrated(true);
-    // Captura de origen (UTMs, referrer, página de entrada) al llegar el visitante.
-    captureAttribution();
+    // Origen de la visita: solo se captura si el visitante ha aceptado las
+    // cookies de marketing. Si las rechaza, se borra lo que hubiera guardado.
+    syncAttributionConsent();
+    const onConsent = () => syncAttributionConsent();
+    window.addEventListener("ventia-consent", onConsent);
+    return () => window.removeEventListener("ventia-consent", onConsent);
   }, []);
 
   useEffect(() => {

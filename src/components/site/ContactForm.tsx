@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { usePublicLead } from "@/lib/site/publicLead";
-import { captureAttribution, getStoredAttribution } from "@/lib/crm/attribution";
+import { getStoredAttribution, syncAttributionConsent } from "@/lib/crm/attribution";
 import type { Attribution } from "@/lib/crm/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,11 @@ export function ContactForm() {
   const [accept, setAccept] = useState(false);
 
   useEffect(() => {
-    setAttr(getStoredAttribution() ?? captureAttribution());
+    // Solo hay atribución si el visitante aceptó las cookies de marketing.
+    const sync = () => setAttr(getStoredAttribution() ?? syncAttributionConsent());
+    sync();
+    window.addEventListener("ventia-consent", sync);
+    return () => window.removeEventListener("ventia-consent", sync);
   }, []);
 
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) =>

@@ -1,6 +1,6 @@
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
-import { captureAttribution, getStoredAttribution } from "@/lib/crm/attribution";
+import { getStoredAttribution, syncAttributionConsent } from "@/lib/crm/attribution";
 import {
   companyField,
   emailField,
@@ -50,7 +50,8 @@ export function usePublicLead() {
     const owner = ownerField(fields);
     if (owner) values[owner.id] = "";
 
-    const attribution = getStoredAttribution() ?? captureAttribution() ?? undefined;
+    // Si el visitante rechazó las cookies de marketing, el lead se crea sin origen.
+    const attribution = getStoredAttribution() ?? syncAttributionConsent() ?? undefined;
     const contact: Contact = {
       id: uid(),
       createdAt: new Date().toISOString(),

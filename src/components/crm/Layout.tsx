@@ -173,10 +173,12 @@ export function CrmLayout({ children }: { children: ReactNode }) {
           <Button variant="ghost" size="icon" onClick={() => setCollapsed((c) => !c)} className="hidden md:inline-flex">
             <PanelLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-semibold md:hidden">{state.branding.companyName}</span>
+          <span className="min-w-0 max-w-[7.5rem] truncate text-sm font-semibold sm:max-w-none md:hidden">
+            {state.branding.companyName}
+          </span>
           {myTenants.length > 1 && tenant && (
             <Select value={tenant.id} onValueChange={switchTenant}>
-              <SelectTrigger className="h-9 w-[200px]" aria-label="Cambiar de organización">
+              <SelectTrigger className="h-9 w-[9.5rem] shrink-0 sm:w-[200px]" aria-label="Cambiar de organización">
                 <Building2 className="mr-1 h-4 w-4 shrink-0 opacity-70" />
                 <SelectValue />
               </SelectTrigger>

@@ -51,7 +51,7 @@ function VerificarPage() {
           <p className="text-sm text-muted-foreground">
             Tu dirección de correo está confirmada. Ya puedes usar la cuenta con normalidad.
           </p>
-          <Button className="w-full" onClick={() => navigate({ to: user ? "/" : "/auth" })}>
+          <Button className="w-full" onClick={() => navigate({ to: user ? "/inicio" : "/auth" })}>
             {user ? "Ir al panel" : "Iniciar sesión"}
           </Button>
         </div>
