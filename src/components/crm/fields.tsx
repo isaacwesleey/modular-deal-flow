@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCrm } from "@/lib/crm/store";
 import type { FieldDef } from "@/lib/crm/types";
 
 export function formatValue(field: FieldDef, value: unknown): string {
@@ -34,6 +35,7 @@ export function formatValue(field: FieldDef, value: unknown): string {
 }
 
 export function FieldValueView({ field, value }: { field: FieldDef; value: unknown }) {
+  if (field.type === "user") return <UserValue value={value} />;
   if (field.type === "multiselect" && Array.isArray(value) && value.length) {
     return (
       <div className="flex flex-wrap gap-1">
@@ -48,6 +50,47 @@ export function FieldValueView({ field, value }: { field: FieldDef; value: unkno
   return <span className="text-sm">{formatValue(field, value)}</span>;
 }
 
+function UserValue({ value }: { value: unknown }) {
+  const { root } = useCrm();
+  const id = String(value ?? "");
+  const found = root.users.find((u) => u.id === id);
+  if (!found) return <span className="text-sm text-muted-foreground">Sin asignar</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+        {found.name.charAt(0).toUpperCase()}
+      </span>
+      {found.name}
+    </span>
+  );
+}
+
+export function UserFieldInput({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const { tenantUsers } = useCrm();
+  const str = String(value ?? "");
+  return (
+    <Select value={str || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
+      <SelectTrigger>
+        <SelectValue placeholder="Sin asignar" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Sin asignar</SelectItem>
+        {tenantUsers.map((u) => (
+          <SelectItem key={u.id} value={u.id}>
+            {u.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function FieldInput({
   field,
   value,
@@ -60,6 +103,8 @@ export function FieldInput({
   const str = value === undefined || value === null ? "" : String(value);
 
   switch (field.type) {
+    case "user":
+      return <UserFieldInput value={value} onChange={onChange} />;
     case "textarea":
       return <Textarea value={str} onChange={(e) => onChange(e.target.value)} rows={3} />;
     case "number":
