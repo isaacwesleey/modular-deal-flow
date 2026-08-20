@@ -241,13 +241,34 @@ export function CrmLayout({ children }: { children: ReactNode }) {
             <Button size="sm" variant="outline" className="ml-auto" onClick={resendVerification}>
               Reenviar correo
             </Button>
-            {verifyLink && (
-              <a href={verifyLink} className="w-full break-all text-xs text-primary underline">
-                {verifyLink}
-              </a>
-            )}
           </div>
         )}
+
+        {/*
+          El enlace simulado no se vuelca en la barra de la app: se muestra en un
+          diálogo con un botón que lleva a la confirmación.
+        */}
+        <Dialog open={verifyOpen} onOpenChange={setVerifyOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirma tu correo</DialogTitle>
+              <DialogDescription>
+                Te hemos enviado un mensaje a {user?.email}. En esta plantilla el correo es
+                simulado, así que puedes confirmarlo directamente desde aquí.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setVerifyOpen(false)}>
+                Ahora no
+              </Button>
+              {verifyLink && (
+                <Button asChild>
+                  <a href={verifyLink}>Abrir confirmación</a>
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {supportMode && (
           <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm">
