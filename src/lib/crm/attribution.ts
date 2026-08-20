@@ -2,7 +2,7 @@ import type { Attribution } from "./types";
 
 const ATTR_KEY = "crm-remix-attribution";
 
-function device(): Attribution["device"] {
+function device(): NonNullable<Attribution["device"]> {
   if (typeof navigator === "undefined") return "escritorio";
   const ua = navigator.userAgent;
   if (/iPad|Tablet/i.test(ua)) return "tablet";
