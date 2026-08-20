@@ -1,7 +1,23 @@
 import type { Attribution } from "./types";
 import { readConsent } from "@/lib/site/cookies";
 
-const ATTR_KEY = "crm-remix-attribution";
+/** Clave real de la atribución. Es la que se documenta en la política de cookies. */
+const ATTR_KEY = "ventia-origen";
+/** Clave de versiones anteriores de la plantilla: se migra y se elimina. */
+const LEGACY_ATTR_KEY = "crm-remix-attribution";
+
+/** Traslada la atribución antigua a la clave nueva y borra el rastro anterior. */
+function migrateLegacyAttribution() {
+  if (typeof window === "undefined") return;
+  try {
+    const legacy = localStorage.getItem(LEGACY_ATTR_KEY);
+    if (legacy === null) return;
+    if (localStorage.getItem(ATTR_KEY) === null) localStorage.setItem(ATTR_KEY, legacy);
+    localStorage.removeItem(LEGACY_ATTR_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * LÓGICA DE CONSENTIMIENTO
@@ -20,6 +36,7 @@ export function hasAttributionConsent(): boolean {
 export function clearAttribution() {
   try {
     localStorage.removeItem(ATTR_KEY);
+    localStorage.removeItem(LEGACY_ATTR_KEY);
   } catch {
     /* ignore */
   }
@@ -28,6 +45,7 @@ export function clearAttribution() {
 /** Captura si hay consentimiento; borra la atribución previa si no lo hay. */
 export function syncAttributionConsent(): Attribution | null {
   if (typeof window === "undefined") return null;
+  migrateLegacyAttribution();
   if (!hasAttributionConsent()) {
     clearAttribution();
     return null;
