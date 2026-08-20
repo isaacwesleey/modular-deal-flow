@@ -10,33 +10,73 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContactosRouteImport } from './routes/contactos'
+import { Route as NotasRouteImport } from './routes/notas'
+import { Route as PipelineRouteImport } from './routes/pipeline'
+import { Route as TareasRouteImport } from './routes/tareas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactosRoute = ContactosRouteImport.update({
+  id: '/contactos',
+  path: '/contactos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotasRoute = NotasRouteImport.update({
+  id: '/notas',
+  path: '/notas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelineRoute = PipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TareasRoute = TareasRouteImport.update({
+  id: '/tareas',
+  path: '/tareas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/contactos': typeof ContactosRoute
+  '/notas': typeof NotasRoute
+  '/pipeline': typeof PipelineRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/contactos': typeof ContactosRoute
+  '/notas': typeof NotasRoute
+  '/pipeline': typeof PipelineRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/contactos': typeof ContactosRoute
+  '/notas': typeof NotasRoute
+  '/pipeline': typeof PipelineRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
+  id: '__root__' | '/' | '/contactos' | '/notas' | '/pipeline' | '/tareas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ContactosRoute: typeof ContactosRoute
+  NotasRoute: typeof NotasRoute
+  PipelineRoute: typeof PipelineRoute
+  TareasRoute: typeof TareasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +88,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contactos': {
+      id: '/contactos'
+      path: '/contactos'
+      fullPath: '/contactos'
+      preLoaderRoute: typeof ContactosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notas': {
+      id: '/notas'
+      path: '/notas'
+      fullPath: '/notas'
+      preLoaderRoute: typeof NotasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipeline': {
+      id: '/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof PipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tareas': {
+      id: '/tareas'
+      path: '/tareas'
+      fullPath: '/tareas'
+      preLoaderRoute: typeof TareasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ContactosRoute: ContactosRoute,
+  NotasRoute: NotasRoute,
+  PipelineRoute: PipelineRoute,
+  TareasRoute: TareasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
