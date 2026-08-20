@@ -89,7 +89,9 @@ function AdminPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Organizaciones</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {tenants.length} organizaciones · {root.users.filter((u) => !u.superAdmin).length} usuarios
+            {tenants.length} {tenants.length === 1 ? "organización" : "organizaciones"} ·{" "}
+            {root.users.filter((u) => !u.superAdmin).length}{" "}
+            {root.users.filter((u) => !u.superAdmin).length === 1 ? "usuario" : "usuarios"}
           </p>
         </div>
 
@@ -135,7 +137,7 @@ function AdminPage() {
                       )}
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                      {members.length} usuarios · {t.state.contacts.filter((c) => !c.deletedAt).length} contactos ·{" "}
+                      {members.length} {members.length === 1 ? "usuario" : "usuarios"} · {t.state.contacts.filter((c) => !c.deletedAt).length} contactos ·{" "}
                       {t.state.deals.filter((d) => !d.deletedAt).length} oportunidades · {t.state.tasks.length} tareas ·{" "}
                       {t.state.notes.length} notas
                     </p>
