@@ -109,7 +109,7 @@ export function ContactForm() {
         </Label>
       </div>
       <Button type="submit" className="w-full bg-ventia-deep text-white hover:bg-ventia-deep/90">
-        Solicitar una demostración
+        Enviar solicitud
       </Button>
       {attr && (
         <p className="text-center text-[11px] text-ventia-ink-soft">
