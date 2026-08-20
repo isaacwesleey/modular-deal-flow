@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useDeferredValue } from "react";
 import { toast } from "sonner";
 import {
   ArrowUpDown,
@@ -93,6 +93,8 @@ function ContactosPage() {
 
   const [tab, setTab] = useState<"activos" | "papelera">("activos");
   const [q, setQ] = useState("");
+  // Filtrar sobre un valor diferido mantiene el tecleo fluido con miles de filas.
+  const dq = useDeferredValue(q);
   // Varios filtros combinables a la vez (todos deben cumplirse).
   const [filters, setFilters] = useState<{ fieldId: string; value: string }[]>([]);
   const [sortBy, setSortBy] = useState<string>("");
@@ -121,7 +123,7 @@ function ContactosPage() {
   const base = tab === "activos" ? activeContacts(state) : trashedContacts(state);
 
   const filtered = useMemo(() => {
-    const term = q.toLowerCase().trim();
+    const term = dq.toLowerCase().trim();
     let list = base.filter((c) => {
       if (term) {
         const hay = fields
@@ -149,7 +151,7 @@ function ContactosPage() {
       }
     }
     return list;
-  }, [base, q, activeFilters, sortBy, sortDir, fields]);
+  }, [base, dq, activeFilters, sortBy, sortDir, fields]);
 
   const PAGE_SIZE = user?.prefs?.pageSize ?? DEFAULT_PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));

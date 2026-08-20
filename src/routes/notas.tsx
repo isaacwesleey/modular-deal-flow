@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useDeferredValue } from "react";
 import { Trash2, Search } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { activeContacts, recordTitle, activeDeals } from "@/lib/crm/roles";
@@ -32,6 +32,8 @@ export const Route = createFileRoute("/notas")({
 function NotasPage() {
   const { state, setState, logEvents, user } = useCrm();
   const [q, setQ] = useState("");
+  // Filtrar sobre un valor diferido mantiene el tecleo fluido con miles de filas.
+  const dq = useDeferredValue(q);
   const [page, setPage] = useState(0);
   const [text, setText] = useState("");
   const [link, setLink] = useState("none:");
@@ -70,7 +72,7 @@ function NotasPage() {
   };
 
   const sorted = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = dq.trim().toLowerCase();
     const list = needle
       ? state.notes.filter(
           (n) =>

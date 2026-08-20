@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useDeferredValue } from "react";
 import { Phone, Mail, Users, Circle, Plus, List, CalendarDays, Search } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { activeContacts, recordTitle, activeDeals } from "@/lib/crm/roles";
@@ -56,6 +56,8 @@ const emptyTask = (): Task => ({
 function TareasPage() {
   const { state, setState, logEvents, user } = useCrm();
   const [q, setQ] = useState("");
+  // Filtrar sobre un valor diferido mantiene el tecleo fluido con miles de filas.
+  const dq = useDeferredValue(q);
   const [page, setPage] = useState(0);
   const [view, setView] = useState<"lista" | "calendario">("lista");
   const [draft, setDraft] = useState<Task | null>(null);
@@ -89,7 +91,7 @@ function TareasPage() {
   };
 
   const sorted = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = dq.trim().toLowerCase();
     const list = needle
       ? state.tasks.filter(
           (t) =>
