@@ -673,7 +673,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       ),
       tokens: emailChanged
         ? [...(r.tokens ?? []), makeToken("verify", mail!, { userId: user.id })]
-        : r.tokens,
+        : (r.tokens ?? []),
     }));
     return { ok: true };
   };
