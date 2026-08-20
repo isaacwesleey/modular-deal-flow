@@ -18,6 +18,7 @@ import {
   MailWarning,
 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
+import { useDueTaskNotifications } from "@/lib/crm/useDueTasks";
 import { NotificationBell } from "@/components/crm/NotificationBell";
 import { tokenLink } from "@/lib/crm/tokens";
 import { toast } from "sonner";
@@ -37,6 +38,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function useNavItems() {
   const { state } = useCrm();
