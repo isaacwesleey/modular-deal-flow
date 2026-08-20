@@ -4,7 +4,8 @@ import { GripVertical, Plus, Trash2, Eye, EyeOff, RotateCcw } from "lucide-react
 import { useCrm } from "@/lib/crm/store";
 import { BRAND_COLORS, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
 import { isProtectedField } from "@/lib/crm/roles";
-import { PageHeader } from "@/components/crm/Layout";
+import { AccessDenied, PageHeader } from "@/components/crm/Layout";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,10 +44,15 @@ export const Route = createFileRoute("/ajustes")({
 });
 
 function AjustesPage() {
-  const { state, setState, reset } = useCrm();
+  const { state, setState, reset, canManageSettings } = useCrm();
 
   const setModule = (k: ModuleKey, v: boolean) =>
     setState((s) => ({ ...s, modules: { ...s.modules, [k]: v } }));
+
+  if (!canManageSettings)
+    return (
+      <AccessDenied message="Solo los administradores de la organización pueden abrir Ajustes." />
+    );
 
   return (
     <>
@@ -83,6 +89,7 @@ function AjustesPage() {
           <TabsTrigger value="campos">Campos</TabsTrigger>
           <TabsTrigger value="etapas">Etapas</TabsTrigger>
           <TabsTrigger value="marca">Marca</TabsTrigger>
+          <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
         </TabsList>
 
         <TabsContent value="modulos" className="space-y-3">
@@ -122,8 +129,150 @@ function AjustesPage() {
         <TabsContent value="marca">
           <BrandEditor />
         </TabsContent>
+
+        <TabsContent value="usuarios">
+          <UsersEditor />
+        </TabsContent>
       </Tabs>
     </>
+  );
+}
+
+function UsersEditor() {
+  const { root, setRoot, tenant, user } = useCrm();
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<"admin" | "user">("user");
+  if (!tenant) return null;
+
+  const members = root.users.filter((u) => u.memberships.some((m) => m.tenantId === tenant.id));
+
+  const invite = () => {
+    const mail = email.trim().toLowerCase();
+    if (!mail) return;
+    const existing = root.users.find((u) => u.email.toLowerCase() === mail);
+    if (existing?.memberships.some((m) => m.tenantId === tenant.id)) {
+      toast.error("Ese usuario ya pertenece a la organización.");
+      return;
+    }
+    setRoot((r) => ({
+      ...r,
+      users: existing
+        ? r.users.map((u) =>
+            u.id === existing.id
+              ? { ...u, memberships: [...u.memberships, { tenantId: tenant.id, role }] }
+              : u,
+          )
+        : [
+            ...r.users,
+            {
+              id: uid(),
+              name: name.trim() || mail.split("@")[0]!,
+              email: mail,
+              password: "demo1234",
+              memberships: [{ tenantId: tenant.id, role }],
+            },
+          ],
+    }));
+    setEmail("");
+    setName("");
+    toast.success("Invitación creada (contraseña inicial: demo1234)");
+  };
+
+  const changeRole = (userId: string, newRole: "admin" | "user") =>
+    setRoot((r) => ({
+      ...r,
+      users: r.users.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              memberships: u.memberships.map((m) =>
+                m.tenantId === tenant.id ? { ...m, role: newRole } : m,
+              ),
+            }
+          : u,
+      ),
+    }));
+
+  const removeUser = (userId: string) =>
+    setRoot((r) => ({
+      ...r,
+      users: r.users.map((u) =>
+        u.id === userId
+          ? { ...u, memberships: u.memberships.filter((m) => m.tenantId !== tenant.id) }
+          : u,
+      ),
+    }));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-4">
+        <div className="min-w-[200px] flex-1 space-y-1.5">
+          <Label htmlFor="inv-email">Invitar por email</Label>
+          <Input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="persona@empresa.com" />
+        </div>
+        <div className="min-w-[160px] space-y-1.5">
+          <Label htmlFor="inv-name">Nombre</Label>
+          <Input id="inv-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Opcional" />
+        </div>
+        <div className="w-[150px] space-y-1.5">
+          <Label>Rol</Label>
+          <Select value={role} onValueChange={(v) => setRole(v as "admin" | "user")}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="user">Usuario</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={invite}><Plus className="mr-1 h-4 w-4" /> Invitar</Button>
+      </div>
+
+      <div className="divide-y rounded-xl border bg-card">
+        {members.map((m) => {
+          const mRole = m.memberships.find((x) => x.tenantId === tenant.id)!.role;
+          const isMe = m.id === user?.id;
+          return (
+            <div key={m.id} className="flex flex-wrap items-center gap-3 p-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {m.name} {isMe && <span className="text-xs text-muted-foreground">(tú)</span>}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <Select value={mRole} onValueChange={(v) => changeRole(m.id, v as "admin" | "user")} disabled={isMe}>
+                  <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Usuario</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" disabled={isMe} aria-label={`Eliminar ${m.email}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar a {m.name} de {tenant.name}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Perderá el acceso a los datos de esta organización.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => removeUser(m.id)}>Eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
