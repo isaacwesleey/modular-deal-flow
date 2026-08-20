@@ -1,6 +1,39 @@
 import type { Attribution } from "./types";
+import { readConsent } from "@/lib/site/cookies";
 
 const ATTR_KEY = "crm-remix-attribution";
+
+/**
+ * LÓGICA DE CONSENTIMIENTO
+ * La atribución (utm_source, campaña, referrer, dispositivo) es tratamiento de
+ * marketing, así que NO puede capturarse por defecto:
+ *  - Sin decisión del visitante o con marketing rechazado -> no se captura nada.
+ *  - Si el visitante rechaza después de haber aceptado -> se borra lo guardado.
+ *  - Si acepta más tarde -> se captura a partir de ese momento (no retroactivo).
+ * El borrado lo dispara `syncAttributionConsent()`, que se llama al arrancar la
+ * app y cada vez que cambia el consentimiento (evento "ventia-consent").
+ */
+export function hasAttributionConsent(): boolean {
+  return readConsent()?.marketing === true;
+}
+
+export function clearAttribution() {
+  try {
+    localStorage.removeItem(ATTR_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Captura si hay consentimiento; borra la atribución previa si no lo hay. */
+export function syncAttributionConsent(): Attribution | null {
+  if (typeof window === "undefined") return null;
+  if (!hasAttributionConsent()) {
+    clearAttribution();
+    return null;
+  }
+  return captureAttribution();
+}
 
 function device(): NonNullable<Attribution["device"]> {
   if (typeof navigator === "undefined") return "escritorio";
@@ -16,6 +49,7 @@ function device(): NonNullable<Attribution["device"]> {
  */
 export function captureAttribution(): Attribution | null {
   if (typeof window === "undefined") return null;
+  if (!hasAttributionConsent()) return null;
   const stored = getStoredAttribution();
   if (stored) return stored;
 
@@ -54,6 +88,7 @@ function hostOf(url: string): string {
 
 export function getStoredAttribution(): Attribution | null {
   if (typeof window === "undefined") return null;
+  if (!hasAttributionConsent()) return null;
   try {
     const raw = localStorage.getItem(ATTR_KEY);
     return raw ? (JSON.parse(raw) as Attribution) : null;
