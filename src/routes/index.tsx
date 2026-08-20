@@ -195,20 +195,22 @@ function BlockBody({ block }: { block: DashboardBlock }) {
   }
 
   if (block.type === "ultimos-contactos") {
-    const nameField = state.contactFields[0]?.id ?? "nombre";
     const list = [...state.contacts]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 5);
     return (
       <ul className="space-y-2">
-        {list.map((c) => (
-          <li key={c.id} className="flex items-center gap-2 text-sm">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
-              {String(c.values[nameField] ?? "?").charAt(0)}
-            </span>
-            <span className="truncate">{String(c.values[nameField] ?? "Sin nombre")}</span>
-          </li>
-        ))}
+        {list.map((c) => {
+          const name = recordTitle(state.contactFields, c.values, "Sin nombre");
+          return (
+            <li key={c.id} className="flex items-center gap-2 text-sm">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                {name.charAt(0)}
+              </span>
+              <span className="truncate">{name}</span>
+            </li>
+          );
+        })}
         {!list.length && (
           <Link to="/contactos" className="text-sm text-primary underline">
             Añade tu primer contacto
@@ -223,11 +225,11 @@ function BlockBody({ block }: { block: DashboardBlock }) {
       ...state.notes.map((n) => ({ at: n.createdAt, text: `Nota: ${n.text.slice(0, 60)}` })),
       ...state.contacts.map((c) => ({
         at: c.createdAt,
-        text: `Contacto añadido: ${String(c.values[state.contactFields[0]?.id ?? "nombre"] ?? "")}`,
+        text: `Contacto añadido: ${recordTitle(state.contactFields, c.values, "Sin nombre")}`,
       })),
       ...state.deals.map((d) => ({
         at: d.createdAt,
-        text: `Oportunidad: ${String(d.values[state.dealFields[0]?.id ?? "titulo"] ?? "")}`,
+        text: `Oportunidad: ${recordTitle(state.dealFields, d.values)}`,
       })),
     ]
       .sort((a, b) => b.at.localeCompare(a.at))
@@ -251,7 +253,7 @@ function BlockBody({ block }: { block: DashboardBlock }) {
     metric === "deals-ganados"
       ? String(state.deals.filter((d) => d.stageId === wonStage?.id).length)
       : metric === "valor-pipeline"
-        ? eur(state.deals.reduce((a, d) => a + (Number(d.values["valor"]) || 0), 0))
+        ? eur(sumDeals(state.dealFields, state.deals))
         : metric === "contactos"
           ? String(state.contacts.length)
           : String(state.tasks.filter((t) => !t.done).length);
