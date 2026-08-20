@@ -21,6 +21,17 @@ import type {
 const ROOT_KEY = "crm-remix-root-v2";
 const LEGACY_KEY = "crm-remix-state-v1";
 
+/**
+ * ⚠️ AUTENTICACIÓN SIMULADA — SOLO PARA LA DEMO/PLANTILLA.
+ * Los usuarios y sus contraseñas se guardan EN TEXTO PLANO en localStorage:
+ * cualquiera con acceso al navegador puede leerlas y modificarlas, y no hay
+ * ninguna verificación en servidor (los roles y la suspensión de tenants son
+ * puramente de cliente).
+ * Antes de llevar esto a producción, sustituye todo este módulo de sesión por
+ * un proveedor real (Supabase Auth / Lovable Cloud, Auth0, Clerk...) con
+ * hashing de contraseñas, sesiones firmadas y RLS/permisos en el backend.
+ */
+
 /** Asegura que existan los roles de campo en estados guardados antes de esta versión. */
 function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
   let list = fields;
@@ -183,7 +194,16 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       const id = r.currentTenantId;
       const t = id ? r.tenants[id] : null;
       if (!id || !t) return r;
-      return { ...r, tenants: { ...r.tenants, [id]: { ...t, state: defaultState() } } };
+      // Restaura los datos de ejemplo pero conserva la identidad del tenant
+      // (nombre, logo, color de marca y tema).
+      const fresh = defaultState();
+      return {
+        ...r,
+        tenants: {
+          ...r.tenants,
+          [id]: { ...t, state: { ...fresh, branding: { ...t.state.branding } } },
+        },
+      };
     });
 
   // Tema + color de marca del tenant activo
@@ -199,24 +219,48 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   }, [state.branding.theme, state.branding.brandHue, hydrated]);
 
   const login: Ctx["login"] = (email, password) => {
+    // ⚠️ Comparación de contraseña en texto plano: simulación, no usar en real.
     const found = root.users.find(
       (u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password,
     );
     if (!found) return { ok: false, error: "Email o contraseña incorrectos." };
-    const first = found.superAdmin ? null : (found.memberships[0]?.tenantId ?? null);
+    let target: string | null = null;
     if (!found.superAdmin) {
-      const t = first ? root.tenants[first] : null;
-      if (t?.suspended) return { ok: false, error: "Tu organización está suspendida." };
+      const mine = found.memberships
+        .map((m) => root.tenants[m.tenantId])
+        .filter((t): t is Tenant => Boolean(t));
+      if (!mine.length) return { ok: false, error: "Tu usuario no pertenece a ninguna organización." };
+      const active = mine.find((t) => !t.suspended);
+      if (!active)
+        return {
+          ok: false,
+          error:
+            mine.length > 1
+              ? "Todas tus organizaciones están suspendidas. Contacta con el soporte del SaaS."
+              : "Tu organización está suspendida. Contacta con el soporte del SaaS.",
+        };
+      target = active.id;
     }
-    setRoot((r) => ({ ...r, currentUserId: found.id, currentTenantId: first, supportMode: false }));
+    setRoot((r) => ({ ...r, currentUserId: found.id, currentTenantId: target, supportMode: false }));
     return { ok: true };
   };
 
   const loginAs: Ctx["loginAs"] = (userId, tenantId) => {
     const found = root.users.find((u) => u.id === userId);
     if (!found) return;
-    const t = tenantId ?? (found.superAdmin ? null : (found.memberships[0]?.tenantId ?? null));
-    setRoot((r) => ({ ...r, currentUserId: found.id, currentTenantId: t, supportMode: false }));
+    let t = tenantId ?? null;
+    if (!t && !found.superAdmin) {
+      const mine = found.memberships
+        .map((m) => root.tenants[m.tenantId])
+        .filter((x): x is Tenant => Boolean(x));
+      t = (mine.find((x) => !x.suspended) ?? null)?.id ?? null;
+    }
+    setRoot((r) => ({
+      ...r,
+      currentUserId: found.id,
+      currentTenantId: t,
+      supportMode: Boolean(found.superAdmin && t),
+    }));
   };
 
   const logout = () =>
@@ -224,6 +268,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
 
   const register: Ctx["register"] = ({ company, name, email, password }) => {
     const mail = email.trim().toLowerCase();
+    if (!company.trim()) return { ok: false, error: "Indica el nombre de la organización." };
+    if (!name.trim()) return { ok: false, error: "Indica tu nombre." };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))
+      return { ok: false, error: "El email no es válido." };
+    if (!password || password.length < 4)
+      return { ok: false, error: "La contraseña debe tener al menos 4 caracteres." };
     if (root.users.some((u) => u.email.toLowerCase() === mail))
       return { ok: false, error: "Ya existe un usuario con ese email." };
     const tenantId = uid();
@@ -237,6 +287,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       id: uid(),
       name: name.trim() || mail,
       email: mail,
+      // ⚠️ Contraseña sin hashear: simulación en localStorage.
       password,
       memberships: [{ tenantId, role: "admin" }],
     };
@@ -252,7 +303,15 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   };
 
   const switchTenant = (tenantId: string) =>
-    setRoot((r) => ({ ...r, currentTenantId: tenantId, supportMode: false }));
+    setInternal((r) => {
+      const t = r.tenants[tenantId];
+      if (!t) return r;
+      const su = Boolean(r.users.find((u) => u.id === r.currentUserId)?.superAdmin);
+      // Un usuario normal nunca puede entrar en una organización suspendida.
+      if (t.suspended && !su) return r;
+      // Cualquier acceso del super admin a un tenant es modo soporte.
+      return { ...r, currentTenantId: tenantId, supportMode: su };
+    });
 
   const enterSupport = (tenantId: string) =>
     setRoot((r) => ({ ...r, currentTenantId: tenantId, supportMode: true }));
