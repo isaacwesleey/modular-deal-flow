@@ -1,0 +1,139 @@
+import { useCrm } from "./store";
+import { uid } from "./defaults";
+import { diffValues } from "./activity";
+import { ownerField, statusField } from "./roles";
+import type { Attribution, Contact, FieldValues } from "./types";
+
+/**
+ * Operaciones sobre contactos que registran siempre el historial.
+ * Cualquier cambio de lead debe pasar por aquí para que el registro sea real.
+ */
+export function useContacts() {
+  const { state, setState, logEvents, root } = useCrm();
+  const fields = state.contactFields;
+
+  const userName = (id: unknown) =>
+    root.users.find((u) => u.id === String(id ?? ""))?.name ?? "Sin asignar";
+
+  /** Sustituye ids de usuario por nombres legibles en el historial. */
+  const pretty = (fieldId: string | undefined, text: string | undefined) => {
+    const f = fields.find((x) => x.id === fieldId);
+    if (!f || f.type !== "user" || !text || text === "—") return text;
+    return userName(text);
+  };
+
+  const create = (values: FieldValues, attribution?: Attribution): Contact => {
+    const contact: Contact = {
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      values,
+      ...(attribution ? { attribution } : {}),
+    };
+    setState((s) => ({ ...s, contacts: [contact, ...s.contacts] }));
+    logEvents([{ type: "contact.created", contactId: contact.id }]);
+    return contact;
+  };
+
+  const update = (id: string, values: FieldValues) => {
+    const before = state.contacts.find((c) => c.id === id)?.values ?? {};
+    setState((s) => ({
+      ...s,
+      contacts: s.contacts.map((c) => (c.id === id ? { ...c, values } : c)),
+    }));
+    const changes = diffValues(fields, before, values);
+    logEvents(
+      changes.map((ch) => {
+        const f = fields.find((x) => x.label === ch.label);
+        return {
+          type: ch.type,
+          contactId: id,
+          ...(ch.label ? { label: ch.label } : {}),
+          ...(pretty(f?.id, ch.from) ? { from: pretty(f?.id, ch.from)! } : {}),
+          ...(pretty(f?.id, ch.to) ? { to: pretty(f?.id, ch.to)! } : {}),
+        };
+      }),
+    );
+  };
+
+  const setStatus = (ids: string[], value: string) => {
+    const f = statusField(fields);
+    if (!f) return;
+    const before = new Map(ids.map((id) => [id, String(state.contacts.find((c) => c.id === id)?.values[f.id] ?? "—")]));
+    setState((s) => ({
+      ...s,
+      contacts: s.contacts.map((c) =>
+        ids.includes(c.id) ? { ...c, values: { ...c.values, [f.id]: value } } : c,
+      ),
+    }));
+    logEvents(
+      ids.map((id) => ({
+        type: "contact.status" as const,
+        contactId: id,
+        label: f.label,
+        from: before.get(id) || "—",
+        to: value,
+      })),
+    );
+  };
+
+  const setOwner = (ids: string[], userId: string) => {
+    const f = ownerField(fields);
+    if (!f) return;
+    const before = new Map(ids.map((id) => [id, userName(state.contacts.find((c) => c.id === id)?.values[f.id])]));
+    setState((s) => ({
+      ...s,
+      contacts: s.contacts.map((c) =>
+        ids.includes(c.id) ? { ...c, values: { ...c.values, [f.id]: userId } } : c,
+      ),
+    }));
+    logEvents(
+      ids.map((id) => ({
+        type: "contact.owner" as const,
+        contactId: id,
+        label: f.label,
+        from: before.get(id) || "Sin asignar",
+        to: userName(userId),
+      })),
+    );
+  };
+
+  /** Envía a la papelera (reversible). */
+  const remove = (ids: string[]) => {
+    const at = new Date().toISOString();
+    setState((s) => ({
+      ...s,
+      contacts: s.contacts.map((c) => (ids.includes(c.id) ? { ...c, deletedAt: at } : c)),
+    }));
+    logEvents(ids.map((id) => ({ type: "contact.deleted" as const, contactId: id })));
+  };
+
+  const restore = (ids: string[]) => {
+    setState((s) => ({
+      ...s,
+      contacts: s.contacts.map((c) => {
+        if (!ids.includes(c.id)) return c;
+        const { deletedAt: _omit, ...rest } = c;
+        return rest;
+      }),
+    }));
+    logEvents(ids.map((id) => ({ type: "contact.restored" as const, contactId: id })));
+  };
+
+  /** Borrado definitivo desde la papelera. */
+  const purge = (ids: string[]) =>
+    setState((s) => ({ ...s, contacts: s.contacts.filter((c) => !ids.includes(c.id)) }));
+
+  const addNote = (contactId: string, text: string) => {
+    const id = uid();
+    setState((s) => ({
+      ...s,
+      notes: [
+        { id, text, createdAt: new Date().toISOString(), linkType: "contact", linkId: contactId },
+        ...s.notes,
+      ],
+    }));
+    logEvents([{ type: "note.added", contactId, noteId: id, text }]);
+  };
+
+  return { create, update, setStatus, setOwner, remove, restore, purge, addNote, userName };
+}
