@@ -195,55 +195,8 @@
   letter-spacing: -0.02em;
 }
 
-.ventia-gradient-text {
-  background-image: linear-gradient(100deg, var(--ventia-deep), var(--ventia));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.ventia-hero-bg {
-  background:
-    radial-gradient(60rem 32rem at 78% -12%, color-mix(in oklab, var(--ventia) 26%, transparent), transparent 65%),
-    radial-gradient(48rem 28rem at 4% 6%, color-mix(in oklab, var(--ventia-accent) 20%, transparent), transparent 62%),
-    linear-gradient(180deg, var(--ventia-mist), oklch(1 0 0));
-}
-
-.ventia-grid-bg {
-  background-image:
-    linear-gradient(color-mix(in oklab, var(--ventia-line) 70%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in oklab, var(--ventia-line) 70%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-}
-
-/* Animación sutil de entrada al hacer scroll. */
-.reveal {
-  opacity: 0;
-  transform: translateY(18px);
-  transition:
-    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
-}
-
-.reveal.is-visible {
-  opacity: 1;
-  transform: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-}
-
-@keyframes ventia-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-.ventia-float {
-  animation: ventia-float 7s ease-in-out infinite;
+/* Sin gradientes decorativos ni fondos ilustrados: el peso lo llevan la
+ * tipografía, el espacio en blanco y una línea de separación sobria. */
+.ventia-soft-bg {
+  background-color: var(--ventia-mist);
 }
