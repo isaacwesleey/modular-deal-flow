@@ -113,6 +113,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  /**
+   * ⚠️ SIMULACIÓN: contraseña en TEXTO PLANO guardada en localStorage.
+   * Nunca almacenes credenciales así en una app real. Antes de producción,
+   * elimina este campo y delega la autenticación en un proveedor real
+   * (Supabase Auth / Lovable Cloud, Auth0, Clerk...) con hashing y sesiones
+   * verificadas en servidor.
+   */
   password: string;
   superAdmin?: boolean;
   memberships: Membership[];
@@ -120,6 +127,7 @@ export interface User {
 
 export interface Tenant {
   id: string;
+  /** Espejo de `state.branding.companyName` (fuente de verdad). Se sincroniza en el store. */
   name: string;
   createdAt: string;
   suspended?: boolean;
