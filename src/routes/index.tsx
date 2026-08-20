@@ -3,6 +3,7 @@ import { useState } from "react";
 import { GripVertical, X, Plus, TrendingUp } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
+import { amountField, recordTitle, sumDeals } from "@/lib/crm/roles";
 import { PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -131,18 +132,27 @@ function BlockBody({ block }: { block: DashboardBlock }) {
 
   if (block.type === "pipeline-resumen") {
     if (!state.modules.pipeline) return <p className="text-sm text-muted-foreground">Pipeline desactivado.</p>;
-    const total = state.deals.reduce((a, d) => a + (Number(d.values["valor"]) || 0), 0);
+    const hasAmount = Boolean(amountField(state.dealFields));
+    const total = sumDeals(state.dealFields, state.deals);
     return (
       <div className="space-y-2">
         {state.stages.map((st) => {
           const deals = state.deals.filter((d) => d.stageId === st.id);
-          const val = deals.reduce((a, d) => a + (Number(d.values["valor"]) || 0), 0);
-          const pct = total ? (val / total) * 100 : 0;
+          const val = sumDeals(state.dealFields, deals);
+          const pct = hasAmount
+            ? total
+              ? (val / total) * 100
+              : 0
+            : state.deals.length
+              ? (deals.length / state.deals.length) * 100
+              : 0;
           return (
             <div key={st.id}>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">{st.name}</span>
-                <span className="font-medium">{eur(val)}</span>
+                <span className="font-medium">
+                  {hasAmount ? eur(val) : `${deals.length} oportunidades`}
+                </span>
               </div>
               <div className="mt-1 h-2 rounded-full bg-muted">
                 <div className="h-2 rounded-full" style={{ width: `${pct}%`, background: st.color }} />
