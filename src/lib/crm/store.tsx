@@ -113,6 +113,8 @@ function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
 }
 
 function migrateTenantState(s: CrmState): CrmState {
+  const cutoff2 = 0;
+  void cutoff2;
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
   const version = s.schemaVersion ?? 1;
   const withRoles = ensureRoles(s.contactFields ?? [], false);
