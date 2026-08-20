@@ -179,14 +179,21 @@ function canWriteSettings(r: RootState): boolean {
   return u.memberships.some((m) => m.tenantId === r.currentTenantId && m.role === "admin");
 }
 
+/** Borra las claves de versiones anteriores una vez migradas con éxito. */
+function dropLegacyKeys() {
+  try {
+    for (const k of [...LEGACY_ROOT_KEYS, LEGACY_KEY]) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
+}
+
 function loadRoot(): RootState {
   try {
     // Lee la clave actual y, si no existe, recupera la de versiones previas
     // para no perder los datos de quien ya venía usando la plantilla.
-    const raw =
-      localStorage.getItem(ROOT_KEY) ??
-      LEGACY_ROOT_KEYS.map((k) => localStorage.getItem(k)).find(Boolean) ??
-      null;
+    const current = localStorage.getItem(ROOT_KEY);
+    const raw = current ?? LEGACY_ROOT_KEYS.map((k) => localStorage.getItem(k)).find(Boolean) ?? null;
     if (raw) {
       const parsed = JSON.parse(raw) as RootState;
       const tenants: Record<string, Tenant> = {};
@@ -194,7 +201,16 @@ function loadRoot(): RootState {
         const state = migrateTenantState(t.state);
         tenants[id] = { ...t, name: state.branding.companyName.trim() || t.name, state };
       }
-      return { ...seedRootState(), ...parsed, tenants };
+      const next = { ...seedRootState(), ...parsed, tenants };
+      // Migración completada: las claves antiguas ya no aportan nada y ocupan
+      // sitio en un almacenamiento limitado, así que se eliminan.
+      try {
+        localStorage.setItem(ROOT_KEY, JSON.stringify(next));
+        dropLegacyKeys();
+      } catch {
+        /* si no cabe, se conserva la clave antigua como respaldo */
+      }
+      return next;
     }
   } catch {
     /* ignore */
@@ -223,6 +239,12 @@ function loadRoot(): RootState {
       root.users = [...root.users, owner];
       root.currentUserId = owner.id;
       root.currentTenantId = id;
+      try {
+        localStorage.setItem(ROOT_KEY, JSON.stringify(root));
+        dropLegacyKeys();
+      } catch {
+        /* si no cabe, se conserva la clave antigua como respaldo */
+      }
     }
   } catch {
     /* ignore */
@@ -359,6 +381,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
 
   /** Vacía papeleras e historial antiguo de todas las organizaciones. */
   const freeUpSpace = () => {
+    // Restos de versiones anteriores de la plantilla: ocupan espacio y ya no se usan.
+    dropLegacyKeys();
     setInternal((r) => {
       const tenants = Object.fromEntries(
         Object.entries(r.tenants).map(([id, t]) => [
