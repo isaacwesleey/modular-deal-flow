@@ -1,8 +1,10 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ShieldCheck, UserCog, User as UserIcon } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
+import { passwordStrength } from "@/lib/crm/tokens";
+import { PasswordStrength } from "@/components/crm/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,6 +81,11 @@ function AuthPage() {
                   <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
                 <Button type="submit" className="w-full">Entrar</Button>
+                <p className="text-center text-sm">
+                  <Link to="/recuperar" className="text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                    ¿Has olvidado tu contraseña?
+                  </Link>
+                </p>
               </form>
             </TabsContent>
 
@@ -106,7 +113,8 @@ function AuthPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="rpass">Contraseña</Label>
-                  <Input id="rpass" type="password" value={rPass} onChange={(e) => setRPass(e.target.value)} required minLength={4} />
+                  <Input id="rpass" type="password" autoComplete="new-password" value={rPass} onChange={(e) => setRPass(e.target.value)} required minLength={6} />
+                  {rPass && <PasswordStrength value={passwordStrength(rPass)} />}
                 </div>
                 <Button type="submit" className="w-full">Crear organización</Button>
               </form>
