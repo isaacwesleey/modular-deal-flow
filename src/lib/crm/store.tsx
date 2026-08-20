@@ -181,7 +181,12 @@ function canWriteSettings(r: RootState): boolean {
 
 function loadRoot(): RootState {
   try {
-    const raw = localStorage.getItem(ROOT_KEY);
+    // Lee la clave actual y, si no existe, recupera la de versiones previas
+    // para no perder los datos de quien ya venía usando la plantilla.
+    const raw =
+      localStorage.getItem(ROOT_KEY) ??
+      LEGACY_ROOT_KEYS.map((k) => localStorage.getItem(k)).find(Boolean) ??
+      null;
     if (raw) {
       const parsed = JSON.parse(raw) as RootState;
       const tenants: Record<string, Tenant> = {};
