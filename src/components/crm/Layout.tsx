@@ -53,7 +53,6 @@ export function useNavItems() {
 export function CrmLayout({ children }: { children: ReactNode }) {
   const {
     state,
-    setState,
     hydrated,
     user,
     tenant,
@@ -65,12 +64,19 @@ export function CrmLayout({ children }: { children: ReactNode }) {
     supportMode,
     exitSupport,
     requestVerification,
+    updatePrefs,
   } = useCrm();
   const nav = useNavItems();
   const [collapsed, setCollapsed] = useState(false);
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const initial = (user?.name.trim()[0] ?? "?").toUpperCase();
+  useDueTaskNotifications();
+
+  /** Tema efectivo: manda la preferencia del usuario sobre la de la organización. */
+  const pref = user?.prefs?.theme ?? "auto";
+  const isDark = pref === "auto" ? state.branding.theme === "dark" : pref === "dark";
 
   const resendVerification = () => {
     const res = requestVerification();
@@ -79,14 +85,15 @@ export function CrmLayout({ children }: { children: ReactNode }) {
       return;
     }
     setVerifyLink(res.token ? tokenLink("/verificar", res.token) : null);
+    setVerifyOpen(true);
     toast.success("Te hemos enviado un correo de confirmación");
   };
 
-  const toggleTheme = () =>
-    setState((s) => ({
-      ...s,
-      branding: { ...s.branding, theme: s.branding.theme === "dark" ? "light" : "dark" },
-    }));
+  /**
+   * El botón del header cambia SOLO la preferencia de quien lo pulsa.
+   * El tema de la organización se toca desde Ajustes y solo un administrador.
+   */
+  const toggleTheme = () => updatePrefs({ theme: isDark ? "light" : "dark" });
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -176,8 +183,8 @@ export function CrmLayout({ children }: { children: ReactNode }) {
           )}
           <div className="ml-auto flex items-center gap-2">
             <NotificationBell />
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Cambiar tema">
-              {state.branding.theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Cambiar mi tema">
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
