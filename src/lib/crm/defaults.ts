@@ -1,5 +1,7 @@
 import type { ActivityEvent, Attribution, CrmState, RootState, Tenant, User } from "./types";
 
+export const DEFAULT_PASSWORD = "acceso1234";
+
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const FIELD_TYPE_LABELS: Record<string, string> = {
@@ -269,10 +271,10 @@ export function seedRootState(): RootState {
   const t2: Tenant = { id: "norte", name: "Studio Norte", createdAt: daysAgo(15), state: studioNorteState() };
 
   const users: User[] = [
-    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: "demo1234", superAdmin: true, memberships: [] },
-    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: "demo1234", memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
-    { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: "demo1234", memberships: [{ tenantId: t1.id, role: "user" }] },
-    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: "demo1234", memberships: [{ tenantId: t2.id, role: "admin" }] },
+    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: DEFAULT_PASSWORD, superAdmin: true, memberships: [] },
+    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
+    { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t1.id, role: "user" }] },
+    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t2.id, role: "admin" }] },
   ];
 
   return {
