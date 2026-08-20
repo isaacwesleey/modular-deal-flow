@@ -116,16 +116,17 @@ export function defaultState(): CrmState {
   }));
 
   const deals = [
-    { id: "d1", t: "Rediseño web Estudio LF", v: 4800, s: "s3", cliente: "Lucía Fernández", cierre: iso(12).slice(0, 10) },
-    { id: "d2", t: "Branding Puig Digital", v: 2500, s: "s1", cliente: "Marc Puig", cierre: iso(25).slice(0, 10) },
-    { id: "d3", t: "Landing + embudo", v: 1200, s: "s2", cliente: "Ana Ruiz", cierre: iso(9).slice(0, 10) },
-    { id: "d4", t: "Mantenimiento anual", v: 3600, s: "s4", cliente: "Diego Salas", cierre: iso(5).slice(0, 10) },
-    { id: "d5", t: "Tienda online", v: 7400, s: "s5", cliente: "Diego Salas", cierre: iso(-4).slice(0, 10) },
-    { id: "d6", t: "Consultoría SEO", v: 900, s: "s6", cliente: "Nora Vidal", cierre: iso(-10).slice(0, 10) },
+    { id: "d1", t: "Rediseño web Estudio LF", v: 4800, s: "s3", c: "c1", cliente: "Lucía Fernández", cierre: iso(12).slice(0, 10) },
+    { id: "d2", t: "Branding Puig Digital", v: 2500, s: "s1", c: "c2", cliente: "Marc Puig", cierre: iso(25).slice(0, 10) },
+    { id: "d3", t: "Landing + embudo", v: 1200, s: "s2", c: "c3", cliente: "Ana Ruiz", cierre: iso(9).slice(0, 10) },
+    { id: "d4", t: "Mantenimiento anual", v: 3600, s: "s4", c: "c4", cliente: "Diego Salas", cierre: iso(5).slice(0, 10) },
+    { id: "d5", t: "Tienda online", v: 7400, s: "s5", c: "c4", cliente: "Diego Salas", cierre: iso(-4).slice(0, 10) },
+    { id: "d6", t: "Consultoría SEO", v: 900, s: "s6", c: "c5", cliente: "Nora Vidal", cierre: iso(-10).slice(0, 10) },
   ].map((d, i) => ({
     id: d.id,
     createdAt: daysAgo(i * 2),
     stageId: d.s,
+    contactId: d.c,
     values: {
       titulo: d.t,
       valor: d.v,
@@ -145,9 +146,9 @@ export function defaultState(): CrmState {
     modules: { pipeline: true, tareas: true, notas: true },
     contactFields: [
       { id: "nombre", label: "Nombre", type: "text", core: true, showInQuickView: true, role: "title" },
-      { id: "email", label: "Email", type: "email", showInQuickView: true },
-      { id: "telefono", label: "Teléfono", type: "phone", showInQuickView: true },
-      { id: "empresa", label: "Empresa", type: "text", showInQuickView: true },
+      { id: "email", label: "Email", type: "email", showInQuickView: true, role: "email" },
+      { id: "telefono", label: "Teléfono", type: "phone", showInQuickView: true, role: "phone" },
+      { id: "empresa", label: "Empresa", type: "text", showInQuickView: true, role: "company" },
       { id: "estado", label: "Estado", type: "select", options: ["Nuevo", "Contactado", "Cualificado", "Cliente", "Perdido"], showInQuickView: true, role: "status" },
       { id: "propietario", label: "Propietario", type: "user", showInQuickView: true, role: "owner" },
       { id: "etiquetas", label: "Etiquetas", type: "multiselect", options: ["VIP", "Web", "Newsletter", "Referido"], showInQuickView: false },
@@ -226,8 +227,8 @@ function studioNorteState(): CrmState {
     ],
     contactFields: [
       { id: "nombre", label: "Cliente", type: "text", core: true, showInQuickView: true, role: "title" },
-      { id: "email", label: "Email", type: "email", showInQuickView: true },
-      { id: "ciudad", label: "Ciudad", type: "text", showInQuickView: true },
+      { id: "email", label: "Email", type: "email", showInQuickView: true, role: "email" },
+      { id: "ciudad", label: "Ciudad", type: "text", showInQuickView: true, role: "company" },
       { id: "sector", label: "Sector", type: "select", options: ["Retail", "Hostelería", "Oficinas"], showInQuickView: true },
       { id: "fase", label: "Fase", type: "select", options: ["Solicitud", "Visitado", "Presupuestado", "Cliente"], showInQuickView: true, role: "status" },
       { id: "responsable", label: "Responsable", type: "user", showInQuickView: true, role: "owner" },
@@ -243,9 +244,9 @@ function studioNorteState(): CrmState {
       { id: "sc3", createdAt: daysAgo(11), attribution: { ...ATTRIBUTIONS[3]!, firstSeenAt: daysAgo(12) }, values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", ciudad: "Bilbao", sector: "Oficinas", fase: "Cliente", responsable: "u-admin" } },
     ],
     deals: [
-      { id: "sd1", createdAt: daysAgo(2), stageId: "n2", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
-      { id: "sd2", createdAt: daysAgo(5), stageId: "n3", values: { titulo: "Escaparate Óptica Zubi", presupuesto: 6400, m2: 35 } },
-      { id: "sd3", createdAt: daysAgo(9), stageId: "n4", values: { titulo: "Salas Coworking Ría", presupuesto: 24000, m2: 260 } },
+      { id: "sd1", createdAt: daysAgo(2), stageId: "n2", contactId: "sc1", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
+      { id: "sd2", createdAt: daysAgo(5), stageId: "n3", contactId: "sc2", values: { titulo: "Escaparate Óptica Zubi", presupuesto: 6400, m2: 35 } },
+      { id: "sd3", createdAt: daysAgo(9), stageId: "n4", contactId: "sc3", values: { titulo: "Salas Coworking Ría", presupuesto: 24000, m2: 260 } },
     ],
     tasks: [
       { id: "st1", title: "Visita técnica Bar Aurora", kind: "reunion", date: iso(0, 12), done: false, linkType: "deal", linkId: "sd1" },

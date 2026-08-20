@@ -4,11 +4,13 @@ import { toast } from "sonner";
 import {
   ArrowUpDown,
   Download,
+  MoreHorizontal,
   Plus,
   RotateCcw,
   Search,
   Trash2,
   Upload,
+  X,
   Users,
 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
@@ -16,6 +18,7 @@ import { uid } from "@/lib/crm/defaults";
 import { useContacts } from "@/lib/crm/useContacts";
 import {
   activeContacts,
+  emailField as emailRoleField,
   ownerField,
   statusField,
   trashDaysLeft,
@@ -47,6 +50,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import type { Contact, FieldValues, SavedView } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/contactos/")({
@@ -71,21 +88,35 @@ function ContactosPage() {
   const quick = fields.filter((f) => f.showInQuickView);
   const status = statusField(fields);
   const owner = ownerField(fields);
-  const emailField = fields.find((f) => f.type === "email");
+  const emailField = emailRoleField(fields);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [tab, setTab] = useState<"activos" | "papelera">("activos");
   const [q, setQ] = useState("");
-  const [filterField, setFilterField] = useState("all");
-  const [filterValue, setFilterValue] = useState("");
+  // Varios filtros combinables a la vez (todos deben cumplirse).
+  const [filters, setFilters] = useState<{ fieldId: string; value: string }[]>([]);
   const [sortBy, setSortBy] = useState<string>("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [dupes, setDupes] = useState<{ rows: FieldValues[]; dupes: number } | null>(null);
+  const [draftValues, setDraftValues] = useState<FieldValues>({});
+  const [draftKey, setDraftKey] = useState("nuevo");
+  /** Aviso de duplicado ANTES de guardar el contacto. */
+  const [dupWarn, setDupWarn] = useState<{ values: FieldValues; existing: Contact } | null>(null);
+  const [dupes, setDupes] = useState<{
+    rows: FieldValues[];
+    existing: number;
+    inside: number;
+  } | null>(null);
+  const [viewDialog, setViewDialog] = useState<{ id?: string; name: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const emptyValues = useMemo<FieldValues>(() => ({}), []);
+
+  const activeFilters = useMemo(
+    () => filters.filter((f) => f.fieldId && f.value.trim()),
+    [filters],
+  );
+  const hasQuery = Boolean(q.trim() || activeFilters.length);
 
   const base = tab === "activos" ? activeContacts(state) : trashedContacts(state);
 
@@ -99,12 +130,11 @@ function ContactosPage() {
           .toLowerCase();
         if (!hay.includes(term)) return false;
       }
-      if (filterField !== "all" && filterValue.trim()) {
-        const v = formatValue(
-          fields.find((f) => f.id === filterField)!,
-          c.values[filterField],
-        ).toLowerCase();
-        if (!v.includes(filterValue.toLowerCase().trim())) return false;
+      for (const flt of activeFilters) {
+        const f = fields.find((x) => x.id === flt.fieldId);
+        if (!f) continue;
+        const v = formatValue(f, c.values[f.id]).toLowerCase();
+        if (!v.includes(flt.value.toLowerCase().trim())) return false;
       }
       return true;
     });
@@ -119,7 +149,7 @@ function ContactosPage() {
       }
     }
     return list;
-  }, [base, q, filterField, filterValue, sortBy, sortDir, fields]);
+  }, [base, q, activeFilters, sortBy, sortDir, fields]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pages - 1);
@@ -129,26 +159,41 @@ function ContactosPage() {
 
   const applyView = (v: SavedView) => {
     setQ(v.query);
-    setFilterField(v.filters[0]?.fieldId ?? "all");
-    setFilterValue(v.filters[0]?.value ?? "");
+    setFilters(v.filters.map((f) => ({ ...f })));
     setSortBy(v.sortBy ?? "");
     setSortDir(v.sortDir ?? "asc");
     setPage(0);
   };
 
-  const saveView = () => {
-    const name = window.prompt("Nombre de la vista");
-    if (!name?.trim() || !user) return;
-    const view: SavedView = {
-      id: uid(),
-      name: name.trim(),
-      userId: user.id,
-      query: q,
-      filters: filterField !== "all" && filterValue ? [{ fieldId: filterField, value: filterValue }] : [],
-      ...(sortBy ? { sortBy, sortDir } : {}),
-    };
-    setState((s) => ({ ...s, savedViews: [...s.savedViews, view] }));
-    toast.success("Vista guardada");
+  /** Crea o renombra una vista desde el diálogo propio (sin prompt del navegador). */
+  const submitView = () => {
+    if (!viewDialog || !viewDialog.name.trim() || !user) return;
+    const name = viewDialog.name.trim();
+    if (viewDialog.id) {
+      const id = viewDialog.id;
+      setState((s) => ({
+        ...s,
+        savedViews: s.savedViews.map((v) => (v.id === id ? { ...v, name } : v)),
+      }));
+      toast.success("Vista renombrada");
+    } else {
+      const view: SavedView = {
+        id: uid(),
+        name,
+        userId: user.id,
+        query: q,
+        filters: activeFilters.map((f) => ({ ...f })),
+        ...(sortBy ? { sortBy, sortDir } : {}),
+      };
+      setState((s) => ({ ...s, savedViews: [...s.savedViews, view] }));
+      toast.success("Vista guardada");
+    }
+    setViewDialog(null);
+  };
+
+  const deleteView = (id: string) => {
+    setState((s) => ({ ...s, savedViews: s.savedViews.filter((v) => v.id !== id) }));
+    toast.success("Vista eliminada");
   };
 
   const toggleSort = (fieldId: string) => {
@@ -216,32 +261,68 @@ function ContactosPage() {
       }
       return values;
     });
-    const dupCount = emailField
-      ? parsed.filter((v) => emailsInUse.has(String(v[emailField.id] ?? "").toLowerCase())).length
-      : 0;
-    setDupes({ rows: parsed, dupes: dupCount });
+    // Duplicados contra los contactos existentes y también dentro del propio CSV.
+    let existing = 0;
+    let inside = 0;
+    if (emailField) {
+      const seen = new Set<string>();
+      for (const v of parsed) {
+        const mail = String(v[emailField.id] ?? "").toLowerCase();
+        if (!mail) continue;
+        if (emailsInUse.has(mail)) existing += 1;
+        else if (seen.has(mail)) inside += 1;
+        seen.add(mail);
+      }
+    }
+    setDupes({ rows: parsed, existing, inside });
   };
 
   const runImport = (skipDupes: boolean) => {
     if (!dupes) return;
-    const list = skipDupes && emailField
-      ? dupes.rows.filter((v) => !emailsInUse.has(String(v[emailField.id] ?? "").toLowerCase()))
-      : dupes.rows;
+    let list = dupes.rows;
+    if (skipDupes && emailField) {
+      const seen = new Set<string>();
+      list = dupes.rows.filter((v) => {
+        const mail = String(v[emailField.id] ?? "").toLowerCase();
+        if (!mail) return true;
+        if (emailsInUse.has(mail) || seen.has(mail)) return false;
+        seen.add(mail);
+        return true;
+      });
+    }
     list.forEach((v) => contactsApi.create(v));
     toast.success(`${list.length} contactos importados`);
     setDupes(null);
   };
 
-  const create = (values: FieldValues) => {
-    if (emailField) {
-      const mail = String(values[emailField.id] ?? "").toLowerCase();
-      if (mail && emailsInUse.has(mail)) {
-        toast.warning("Ya existe un contacto con ese email. Se ha creado igualmente como duplicado.");
-      }
-    }
+  const doCreate = (values: FieldValues) => {
     const c = contactsApi.create(values);
     toast.success("Contacto creado");
     navigate({ to: "/contactos/$id", params: { id: c.id } });
+  };
+
+  /** Antes de guardar: si el email ya existe, se avisa y se deja elegir. */
+  const create = (values: FieldValues) => {
+    if (emailField) {
+      const mail = String(values[emailField.id] ?? "").trim().toLowerCase();
+      const existing = mail
+        ? activeContacts(state).find(
+            (c) => String(c.values[emailField.id] ?? "").toLowerCase() === mail,
+          )
+        : undefined;
+      if (existing) {
+        setDraftValues(values);
+        setDupWarn({ values, existing });
+        return;
+      }
+    }
+    doCreate(values);
+  };
+
+  const openCreate = () => {
+    setDraftValues({});
+    setDraftKey(uid());
+    setCreating(true);
   };
 
   const allChecked = rows.length > 0 && rows.every((r) => selected.includes(r.id));
@@ -270,7 +351,7 @@ function ContactosPage() {
             <Button variant="outline" onClick={exportCsv}>
               <Download className="mr-1 h-4 w-4" /> Exportar
             </Button>
-            <Button onClick={() => setCreating(true)}>
+            <Button onClick={openCreate}>
               <Plus className="mr-1 h-4 w-4" /> Nuevo contacto
             </Button>
           </div>
@@ -286,7 +367,8 @@ function ContactosPage() {
         </TabsList>
       </Tabs>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -296,46 +378,102 @@ function ContactosPage() {
             className="pl-9"
           />
         </div>
-        <Select value={filterField} onValueChange={(v) => { setFilterField(v); setPage(0); }}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los campos</SelectItem>
-            {fields.map((f) => (
-              <SelectItem key={f.id} value={f.id}>
-                {f.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {filterField !== "all" && (
-          <Input
-            value={filterValue}
-            onChange={(e) => { setFilterValue(e.target.value); setPage(0); }}
-            placeholder="Valor del filtro"
-            className="w-44"
-          />
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setFilters((f) => [...f, { fieldId: fields[0]?.id ?? "", value: "" }])}
+        >
+          <Plus className="mr-1 h-4 w-4" /> Añadir filtro
+        </Button>
         {tab === "activos" && (
           <>
-            <Button variant="outline" size="sm" onClick={saveView}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewDialog({ name: "" })}
+              disabled={!hasQuery}
+            >
               Guardar vista
             </Button>
             {myViews.map((v) => (
-              <Badge
-                key={v.id}
-                variant="secondary"
-                className="cursor-pointer"
-                onClick={() => applyView(v)}
-                onDoubleClick={() =>
-                  setState((s) => ({ ...s, savedViews: s.savedViews.filter((x) => x.id !== v.id) }))
-                }
-              >
-                {v.name}
-              </Badge>
+              <span key={v.id} className="inline-flex items-center">
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer rounded-r-none"
+                  onClick={() => applyView(v)}
+                >
+                  {v.name}
+                </Badge>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      aria-label={`Opciones de la vista ${v.name}`}
+                      className="rounded-r-md bg-secondary px-1.5 py-1 text-secondary-foreground hover:bg-secondary/70"
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => applyView(v)}>Aplicar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setViewDialog({ id: v.id, name: v.name })}>
+                      Renombrar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => deleteView(v.id)}
+                    >
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </span>
             ))}
           </>
+        )}
+        </div>
+
+        {filters.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {filters.map((flt, i) => (
+              <div key={i} className="flex items-center gap-1 rounded-lg border bg-card p-1">
+                <Select
+                  value={flt.fieldId}
+                  onValueChange={(v) => {
+                    setFilters((list) => list.map((x, j) => (j === i ? { ...x, fieldId: v } : x)));
+                    setPage(0);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-40 border-0 shadow-none">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fields.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  value={flt.value}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFilters((list) => list.map((x, j) => (j === i ? { ...x, value } : x)));
+                    setPage(0);
+                  }}
+                  placeholder="Contiene..."
+                  className="h-8 w-40 border-0 shadow-none focus-visible:ring-0"
+                />
+                <button
+                  aria-label="Quitar filtro"
+                  className="px-1 text-muted-foreground hover:text-destructive"
+                  onClick={() => setFilters((list) => list.filter((_, j) => j !== i))}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -433,24 +571,24 @@ function ContactosPage() {
                   <p className="font-medium">
                     {tab === "papelera"
                       ? "La papelera está vacía"
-                      : q || filterValue
+                      : hasQuery
                         ? "Ningún lead coincide con la búsqueda"
                         : "Todavía no hay leads"}
                   </p>
                   <p className="mb-4 text-sm text-muted-foreground">
                     {tab === "papelera"
                       ? "Lo que elimines aparecerá aquí durante 30 días."
-                      : q || filterValue
+                      : hasQuery
                         ? "Prueba con otros términos o limpia los filtros."
                         : "Crea el primero o impórtalos desde un CSV."}
                   </p>
                   {tab === "activos" &&
-                    (q || filterValue ? (
-                      <Button variant="outline" onClick={() => { setQ(""); setFilterField("all"); setFilterValue(""); }}>
+                    (hasQuery ? (
+                      <Button variant="outline" onClick={() => { setQ(""); setFilters([]); }}>
                         Limpiar filtros
                       </Button>
                     ) : (
-                      <Button onClick={() => setCreating(true)}>
+                      <Button onClick={openCreate}>
                         <Plus className="mr-1 h-4 w-4" /> Nuevo contacto
                       </Button>
                     ))}
@@ -482,8 +620,8 @@ function ContactosPage() {
         onOpenChange={setCreating}
         title="Nuevo contacto"
         fields={fields}
-        values={emptyValues}
-        recordId="nuevo"
+        values={draftValues}
+        recordId={draftKey}
         onSave={create}
       />
 
@@ -515,14 +653,24 @@ function ContactosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Importar {dupes?.rows.length ?? 0} contactos</AlertDialogTitle>
             <AlertDialogDescription>
-              {dupes?.dupes
-                ? `${dupes.dupes} de estas filas tienen un email que ya existe. Puedes omitirlas o importarlas igualmente.`
+              {dupes && (dupes.existing || dupes.inside)
+                ? [
+                    dupes.existing
+                      ? `${dupes.existing} filas tienen un email que ya existe en tu CRM.`
+                      : "",
+                    dupes.inside
+                      ? `${dupes.inside} filas están repetidas dentro del propio archivo.`
+                      : "",
+                    "Puedes omitirlas o importarlas igualmente.",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
                 : "No se han detectado duplicados por email."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            {!!dupes?.dupes && (
+            {!!dupes && (dupes.existing > 0 || dupes.inside > 0) && (
               <Button variant="outline" onClick={() => runImport(true)}>
                 Omitir duplicados
               </Button>
@@ -531,6 +679,85 @@ function ContactosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Aviso de duplicado ANTES de guardar el contacto creado a mano. */}
+      <AlertDialog open={!!dupWarn} onOpenChange={(o) => !o && setDupWarn(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ese email ya está en uso</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dupWarn && emailField ? (
+                <>
+                  “{String(dupWarn.existing.values[fields.find((f) => f.role === "title")?.id ?? ""] ?? "Contacto")}
+                  ” ya usa {String(dupWarn.values[emailField.id] ?? "")}. ¿Qué quieres hacer?
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDupWarn(null);
+                setCreating(true);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const target = dupWarn!.existing.id;
+                setDupWarn(null);
+                navigate({ to: "/contactos/$id", params: { id: target } });
+              }}
+            >
+              Abrir el existente
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                const values = dupWarn!.values;
+                setDupWarn(null);
+                doCreate(values);
+              }}
+            >
+              Crear igualmente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo propio para nombrar o renombrar vistas guardadas. */}
+      <Dialog open={!!viewDialog} onOpenChange={(o) => !o && setViewDialog(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{viewDialog?.id ? "Renombrar vista" : "Guardar vista"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Nombre</Label>
+            <Input
+              autoFocus
+              value={viewDialog?.name ?? ""}
+              onChange={(e) => setViewDialog((v) => (v ? { ...v, name: e.target.value } : v))}
+              onKeyDown={(e) => e.key === "Enter" && submitView()}
+              placeholder="Leads calientes de Madrid"
+            />
+            {!viewDialog?.id && (
+              <p className="pt-1 text-xs text-muted-foreground">
+                Se guardarán la búsqueda, {activeFilters.length} filtro
+                {activeFilters.length === 1 ? "" : "s"} y la ordenación actual.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialog(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={submitView} disabled={!viewDialog?.name.trim()}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

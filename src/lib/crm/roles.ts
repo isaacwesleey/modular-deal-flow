@@ -20,6 +20,28 @@ export function ownerField(fields: FieldDef[]): FieldDef | undefined {
   return fields.find((f) => f.role === "owner");
 }
 
+/**
+ * Campos de contacto identificados por rol explícito.
+ * El fallback por tipo solo actúa en estados antiguos sin rol asignado;
+ * la fuente de verdad es siempre el rol configurado en Ajustes.
+ */
+export function companyField(fields: FieldDef[]): FieldDef | undefined {
+  return fields.find((f) => f.role === "company");
+}
+
+export function emailField(fields: FieldDef[]): FieldDef | undefined {
+  return fields.find((f) => f.role === "email") ?? fields.find((f) => f.type === "email");
+}
+
+export function phoneField(fields: FieldDef[]): FieldDef | undefined {
+  return fields.find((f) => f.role === "phone") ?? fields.find((f) => f.type === "phone");
+}
+
+/** Oportunidades vinculadas a un contacto por relación real (contactId). */
+export function contactDeals(state: CrmState, contactId: string): Deal[] {
+  return state.deals.filter((d) => d.contactId === contactId);
+}
+
 /** Contactos activos (fuera de la papelera). */
 export function activeContacts(state: CrmState): Contact[] {
   return state.contacts.filter((c) => !c.deletedAt);

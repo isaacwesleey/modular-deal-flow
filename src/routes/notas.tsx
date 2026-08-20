@@ -28,7 +28,7 @@ export const Route = createFileRoute("/notas")({
 });
 
 function NotasPage() {
-  const { state, setState } = useCrm();
+  const { state, setState, logEvents } = useCrm();
   const [text, setText] = useState("");
   const [link, setLink] = useState("none:");
 
@@ -113,7 +113,17 @@ function NotasPage() {
                 <span>{new Date(n.createdAt).toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" })}</span>
                 {label(n.linkType, n.linkId) && <span>· {label(n.linkType, n.linkId)}</span>}
                 <button
-                  onClick={() => setState((s) => ({ ...s, notes: s.notes.filter((x) => x.id !== n.id) }))}
+                  onClick={() => {
+                    setState((s) => ({ ...s, notes: s.notes.filter((x) => x.id !== n.id) }));
+                    logEvents([
+                      {
+                        type: "note.deleted",
+                        noteId: n.id,
+                        ...(n.linkType === "contact" && n.linkId ? { contactId: n.linkId } : {}),
+                        text: n.text,
+                      },
+                    ]);
+                  }}
                   className="ml-auto opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
                   aria-label="Borrar nota"
                 >

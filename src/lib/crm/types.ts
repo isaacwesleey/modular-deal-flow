@@ -12,7 +12,14 @@ export type FieldType =
   | "url"
   | "user";
 
-export type FieldRole = "title" | "amount" | "status" | "owner";
+export type FieldRole =
+  | "title"
+  | "amount"
+  | "status"
+  | "owner"
+  | "company"
+  | "email"
+  | "phone";
 
 export interface FieldDef {
   id: string;
@@ -58,6 +65,8 @@ export type ActivityType =
   | "note.added"
   | "task.created"
   | "task.done"
+  | "task.deleted"
+  | "note.deleted"
   | "deal.linked"
   | "deal.stage";
 
@@ -96,6 +105,8 @@ export interface Deal {
   id: string;
   createdAt: string;
   stageId: string;
+  /** Relación real con el contacto (nunca se deduce por texto). */
+  contactId?: string;
   values: FieldValues;
 }
 
