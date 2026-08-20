@@ -14,6 +14,7 @@ import {
 } from "@/lib/crm/roles";
 import {
   INTAKE_EXAMPLE,
+  INTAKE_MAX_BYTES,
   applyLeadIntake,
   logIntakeError,
   parseLeadPayload,
