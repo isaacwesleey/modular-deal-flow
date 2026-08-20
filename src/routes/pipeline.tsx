@@ -43,6 +43,10 @@ export const Route = createFileRoute("/pipeline")({
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
+function isEmptyValue(v: unknown) {
+  return v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
+}
+
 const NO_STAGE = "__sin_etapa__";
 
 /** Aplica (o retira) la relación con el contacto en un deal. */
@@ -280,11 +284,14 @@ function PipelinePage() {
                   }`}
                   style={{ borderLeftColor: col.color }}
                 >
-                  {quick.map((f, i) => (
-                    <div key={f.id} className={i === 0 ? "text-sm font-medium" : "mt-1 text-xs text-muted-foreground"}>
-                      <FieldValueView field={f} value={d.values[f.id]} />
-                    </div>
-                  ))}
+                  {/* En la tarjeta no pintamos campos vacíos: evita filas de guiones. */}
+                  {quick
+                    .filter((f, i) => i === 0 || !isEmptyValue(d.values[f.id]))
+                    .map((f, i) => (
+                      <div key={f.id} className={i === 0 ? "text-sm font-medium" : "mt-1 text-xs text-muted-foreground"}>
+                        <FieldValueView field={f} value={d.values[f.id]} />
+                      </div>
+                    ))}
                   {contactName(d.contactId) && (
                     <p className="mt-2 text-xs text-muted-foreground">
                       👤 {contactName(d.contactId)}
