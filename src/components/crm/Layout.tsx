@@ -14,9 +14,22 @@ import {
   ShieldAlert,
   Building2,
   ShieldCheck,
+  UserCircle2,
+  MailWarning,
 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
+import { NotificationBell } from "@/components/crm/NotificationBell";
+import { tokenLink } from "@/lib/crm/tokens";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -51,10 +64,20 @@ export function CrmLayout({ children }: { children: ReactNode }) {
     isSuperAdmin,
     supportMode,
     exitSupport,
+    requestVerification,
   } = useCrm();
   const nav = useNavItems();
   const [collapsed, setCollapsed] = useState(false);
+  const [verifyLink, setVerifyLink] = useState<string | null>(null);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const initial = (user?.name.trim()[0] ?? "?").toUpperCase();
+
+  const resendVerification = () => {
+    const res = requestVerification();
+    if (!res.ok) return toast.error(res.error ?? "No se pudo reenviar");
+    setVerifyLink(res.token ? tokenLink("/verificar", res.token) : null);
+    toast.success("Te hemos enviado un correo de confirmación");
+  };
 
   const toggleTheme = () =>
     setState((s) => ({
@@ -149,20 +172,63 @@ export function CrmLayout({ children }: { children: ReactNode }) {
             </Select>
           )}
           <div className="ml-auto flex items-center gap-2">
-            {user && (
-              <span className="hidden text-right text-xs leading-tight sm:block">
-                <span className="block font-medium">{user.name}</span>
-                <span className="block text-muted-foreground">{user.email}</span>
-              </span>
-            )}
+            <NotificationBell />
             <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Cambiar tema">
               {state.branding.theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" onClick={logout} aria-label="Cerrar sesión">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-white"
+                  style={{ background: user?.prefs?.avatarColor ?? "var(--brand)" }}
+                  aria-label="Menú de cuenta"
+                >
+                  {initial}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuLabel className="leading-tight">
+                  <span className="block">{user?.name}</span>
+                  <span className="block truncate text-xs font-normal text-muted-foreground">
+                    {user?.email}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/perfil">
+                    <UserCircle2 className="mr-2 h-4 w-4" /> Mi cuenta
+                  </Link>
+                </DropdownMenuItem>
+                {canManageSettings && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/ajustes">
+                      <Settings className="mr-2 h-4 w-4" /> Ajustes
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
+
+        {user && !user.superAdmin && user.emailVerified === false && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">
+            <MailWarning className="h-4 w-4 shrink-0" />
+            <span>Confirma tu dirección de correo ({user.email}) para asegurar tu cuenta.</span>
+            <Button size="sm" variant="outline" className="ml-auto" onClick={resendVerification}>
+              Reenviar correo
+            </Button>
+            {verifyLink && (
+              <a href={verifyLink} className="w-full break-all text-xs text-primary underline">
+                {verifyLink}
+              </a>
+            )}
+          </div>
+        )}
 
         {supportMode && (
           <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm">
