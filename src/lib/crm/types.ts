@@ -138,6 +138,60 @@ export interface Note {
 
 export type ModuleKey = "pipeline" | "tareas" | "notas";
 
+/**
+ * ⚠️ SIMULACIÓN: tokens de restablecimiento, verificación e invitación.
+ * Se generan en el navegador y viven en localStorage, así que cualquiera puede
+ * leerlos o fabricarlos. En producción los emite el proveedor de autenticación
+ * (Supabase Auth / Lovable Cloud, Auth0, Clerk...), viajan SOLO por email y
+ * el enlace NUNCA se muestra en pantalla como se hace aquí.
+ */
+export type AuthTokenKind = "reset" | "verify" | "invite";
+
+export interface AuthToken {
+  token: string;
+  kind: AuthTokenKind;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+  usedAt?: string;
+  /** Solo en invitaciones. */
+  tenantId?: string;
+  role?: TenantRole;
+  invitedByName?: string;
+  revokedAt?: string;
+  /** Solo en reset/verify. */
+  userId?: string;
+}
+
+export type NotificationKind =
+  | "lead.assigned"
+  | "task.assigned"
+  | "task.due"
+  | "note.mention";
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  tenantId: string;
+  kind: NotificationKind;
+  title: string;
+  body?: string;
+  at: string;
+  read?: boolean;
+  contactId?: string;
+  dealId?: string;
+  taskId?: string;
+}
+
+export interface UserPrefs {
+  /** Tema propio del usuario: manda sobre el de la organización. */
+  theme?: "light" | "dark" | "auto";
+  density?: "comoda" | "compacta";
+  pageSize?: number;
+  timezone?: string;
+  avatarColor?: string;
+}
+
 export type BlockKey =
   | "pipeline-resumen"
   | "tareas-hoy"
@@ -199,6 +253,8 @@ export interface User {
   password: string;
   superAdmin?: boolean;
   memberships: Membership[];
+  emailVerified?: boolean;
+  prefs?: UserPrefs;
 }
 
 export interface Tenant {
@@ -217,4 +273,7 @@ export interface RootState {
   currentTenantId: string | null;
   /** El super admin ha entrado a un tenant para dar soporte. */
   supportMode?: boolean;
+  /** ⚠️ SIMULACIÓN: ver AuthToken. Nunca guardes tokens en el cliente. */
+  tokens?: AuthToken[];
+  notifications?: AppNotification[];
 }
