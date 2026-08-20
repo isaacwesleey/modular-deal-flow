@@ -260,7 +260,10 @@ export function CrmLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        <main className="flex-1 p-4 md:p-6">{hydrated ? children : null}</main>
+        <main
+          data-density={user?.prefs?.density ?? "comoda"}
+          className="flex-1 p-4 md:p-6"
+        >{hydrated ? children : null}</main>
       </div>
     </div>
   );
