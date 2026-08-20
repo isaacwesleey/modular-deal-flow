@@ -283,6 +283,7 @@ interface Ctx {
     entries: Array<
       Omit<AppNotification, "id" | "at" | "tenantId" | "read"> & { tenantId?: string }
     >,
+    opts?: { allowSelf?: boolean },
   ) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
