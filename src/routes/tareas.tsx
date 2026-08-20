@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Phone, Mail, Users, Circle, Plus, List, CalendarDays } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Phone, Mail, Users, Circle, Plus, List, CalendarDays, Search } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
-import { activeContacts, recordTitle } from "@/lib/crm/roles";
+import { activeContacts, recordTitle, activeDeals } from "@/lib/crm/roles";
 import { uid } from "@/lib/crm/defaults";
 import { ModuleOff, PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/crm/Pagination";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,7 +54,9 @@ const emptyTask = (): Task => ({
 });
 
 function TareasPage() {
-  const { state, setState, logEvents } = useCrm();
+  const { state, setState, logEvents, user } = useCrm();
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
   const [view, setView] = useState<"lista" | "calendario">("lista");
   const [draft, setDraft] = useState<Task | null>(null);
 
@@ -79,13 +82,30 @@ function TareasPage() {
       return c ? recordTitle(state.contactFields, c.values, "Sin nombre") : "";
     }
     if (t.linkType === "deal") {
-      const d = state.deals.find((x) => x.id === t.linkId);
+      const d = activeDeals(state).find((x) => x.id === t.linkId);
       return d ? recordTitle(state.dealFields, d.values) : "";
     }
     return "";
   };
 
-  const sorted = [...state.tasks].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const list = needle
+      ? state.tasks.filter(
+          (t) =>
+            t.title.toLowerCase().includes(needle) ||
+            KIND_META[t.kind].label.toLowerCase().includes(needle) ||
+            linkLabel(t).toLowerCase().includes(needle),
+        )
+      : [...state.tasks];
+    return list.sort((a, b) => a.date.localeCompare(b.date));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.tasks, state.contacts, state.deals, q]);
+
+  const PAGE_SIZE = user?.prefs?.pageSize ?? DEFAULT_PAGE_SIZE;
+  const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const paged = sorted.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <>
@@ -115,9 +135,22 @@ function TareasPage() {
         }
       />
 
+      <div className="relative mb-4 max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(0);
+          }}
+          placeholder="Buscar tareas..."
+          className="pl-9"
+        />
+      </div>
+
       {view === "lista" ? (
         <ul className="space-y-2">
-          {sorted.map((t) => {
+          {paged.map((t) => {
             const Icon = KIND_META[t.kind].icon;
             return (
               <li
@@ -143,10 +176,24 @@ function TareasPage() {
               </li>
             );
           })}
-          {!sorted.length && <p className="text-sm text-muted-foreground">Sin tareas todavía.</p>}
+          {!sorted.length && (
+            <p className="text-sm text-muted-foreground">
+              {q ? "Ninguna tarea coincide con la búsqueda." : "Sin tareas todavía."}
+            </p>
+          )}
         </ul>
       ) : (
         <CalendarView tasks={sorted} onPick={(t) => setDraft(t)} />
+      )}
+
+      {view === "lista" && (
+        <Pagination
+          page={current}
+          pages={pages}
+          total={sorted.length}
+          onChange={setPage}
+          label="tareas"
+        />
       )}
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
@@ -209,7 +256,7 @@ function TareasPage() {
                       </SelectItem>
                     ))}
                     {state.modules.pipeline &&
-                      state.deals.map((d) => (
+                      activeDeals(state).map((d) => (
                         <SelectItem key={d.id} value={`deal:${d.id}`}>
                           💼 {recordTitle(state.dealFields, d.values)}
                         </SelectItem>

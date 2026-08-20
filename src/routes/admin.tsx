@@ -1,13 +1,21 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Building2, LogOut, Play, Pause, Plus, LifeBuoy } from "lucide-react";
+import { Building2, LogOut, Play, Pause, Plus, LifeBuoy, Trash2 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
-import { emptyTenantState, uid } from "@/lib/crm/defaults";
+import { EXAMPLE_TENANT, createExampleTenant, emptyTenantState, uid } from "@/lib/crm/defaults";
 import { AccessDenied } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Tenant } from "@/lib/crm/types";
 
 export const Route = createFileRoute("/admin")({
@@ -23,7 +31,8 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminPage() {
-  const { root, setRoot, isSuperAdmin, user, logout, enterSupport, hydrated } = useCrm();
+  const { root, setRoot, isSuperAdmin, user, logout, enterSupport, hydrated, deleteTenant } =
+    useCrm();
   const navigate = useNavigate();
   const [company, setCompany] = useState("");
 
@@ -50,6 +59,11 @@ function AdminPage() {
     setRoot((r) => ({ ...r, tenants: { ...r.tenants, [id]: tenant } }));
     setCompany("");
     toast.success(`Organización “${name}” creada`);
+  };
+
+  const addExample = () => {
+    setRoot((r) => createExampleTenant(r));
+    toast.success("Organización de ejemplo “Studio Norte” creada");
   };
 
   const toggleSuspend = (t: Tenant) =>
@@ -92,7 +106,18 @@ function AdminPage() {
           <Button onClick={createTenant}>
             <Plus className="mr-1 h-4 w-4" /> Crear
           </Button>
+          {!root.tenants[EXAMPLE_TENANT] && (
+            <Button variant="outline" onClick={addExample}>
+              Crear organización de ejemplo
+            </Button>
+          )}
         </div>
+        {!root.tenants[EXAMPLE_TENANT] && (
+          <p className="-mt-4 text-xs text-muted-foreground">
+            La organización de ejemplo llega ya poblada con sus propios contactos, campos, etapas y
+            marca: sirve para comprobar que los datos están aislados entre organizaciones.
+          </p>
+        )}
 
         <div className="space-y-3">
           {tenants.map((t) => {
@@ -111,7 +136,7 @@ function AdminPage() {
                     </h2>
                     <p className="text-xs text-muted-foreground">
                       {members.length} usuarios · {t.state.contacts.filter((c) => !c.deletedAt).length} contactos ·{" "}
-                      {t.state.deals.length} oportunidades · {t.state.tasks.length} tareas ·{" "}
+                      {t.state.deals.filter((d) => !d.deletedAt).length} oportunidades · {t.state.tasks.length} tareas ·{" "}
                       {t.state.notes.length} notas
                     </p>
                   </div>
@@ -129,6 +154,7 @@ function AdminPage() {
                     >
                       <LifeBuoy className="mr-1 h-4 w-4" /> Entrar en soporte
                     </Button>
+                    <DeleteTenantButton tenant={t} onConfirm={() => deleteTenant(t.id)} />
                   </div>
                 </div>
 
@@ -150,5 +176,62 @@ function AdminPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+/** Eliminación definitiva de una organización: exige escribir su nombre exacto. */
+function DeleteTenantButton({ tenant, onConfirm }: { tenant: Tenant; onConfirm: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const match = text.trim() === tenant.name;
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:text-destructive"
+        onClick={() => {
+          setText("");
+          setOpen(true);
+        }}
+      >
+        <Trash2 className="mr-1 h-4 w-4" /> Eliminar
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Eliminar “{tenant.name}”</DialogTitle>
+            <DialogDescription>
+              Se perderán todos sus datos: contactos, oportunidades, tareas, notas, historial,
+              campos, etapas y marca. Sus usuarios dejarán de tener acceso. Esta acción no se puede
+              deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-name">
+              Escribe <strong>{tenant.name}</strong> para confirmar
+            </Label>
+            <Input id="confirm-name" value={text} onChange={(e) => setText(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!match}
+              onClick={() => {
+                onConfirm();
+                setOpen(false);
+                toast.success(`Organización “${tenant.name}” eliminada`);
+              }}
+            >
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

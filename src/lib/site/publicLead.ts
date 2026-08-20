@@ -1,5 +1,5 @@
 import { useCrm } from "@/lib/crm/store";
-import { uid } from "@/lib/crm/defaults";
+import { MAIN_TENANT, uid } from "@/lib/crm/defaults";
 import { getStoredAttribution, syncAttributionConsent } from "@/lib/crm/attribution";
 import {
   companyField,
@@ -11,8 +11,12 @@ import {
 } from "@/lib/crm/roles";
 import type { Contact, FieldValues } from "@/lib/crm/types";
 
-/** Organización que recibe los leads del formulario público de la web. */
-export const MAIN_TENANT_ID = "acme";
+/**
+ * Organización que recibe los leads del formulario público de la web.
+ * Si no existe (espacio de trabajo nuevo o eliminada), se usa la primera
+ * organización disponible; si no hay ninguna, se avisa al visitante.
+ */
+export const MAIN_TENANT_ID = MAIN_TENANT;
 
 export interface PublicLeadInput {
   name: string;
@@ -33,7 +37,11 @@ export function usePublicLead() {
   return (input: PublicLeadInput): { ok: boolean; error?: string } => {
     const tenantId = root.tenants[MAIN_TENANT_ID] ? MAIN_TENANT_ID : Object.keys(root.tenants)[0];
     const tenant = tenantId ? root.tenants[tenantId] : undefined;
-    if (!tenantId || !tenant) return { ok: false, error: "No hay ninguna organización disponible." };
+    if (!tenantId || !tenant) return {
+        ok: false,
+        error:
+          "Ahora mismo no podemos recoger tu solicitud. Escríbenos a hola@ventia.app y te respondemos enseguida.",
+      };
 
     const fields = tenant.state.contactFields;
     const values: FieldValues = {};

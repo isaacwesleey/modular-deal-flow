@@ -3,7 +3,7 @@ import { useState } from "react";
 import { GripVertical, X, Plus, TrendingUp } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { uid } from "@/lib/crm/defaults";
-import { activeContacts, amountField, recordTitle, sumDeals } from "@/lib/crm/roles";
+import { activeContacts, amountField, recordTitle, sumDeals, activeDeals } from "@/lib/crm/roles";
 import { PageHeader } from "@/components/crm/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +47,7 @@ function Dashboard() {
       ...s,
       blocks: [
         ...s.blocks,
-        { id: uid(), type, ...(type === "numero" ? { config: { title: "Deals ganados", metric: "deals-ganados" as const } } : {}) },
+        { id: uid(), type, ...(type === "numero" ? { config: { title: "Oportunidades ganadas", metric: "deals-ganados" as const } } : {}) },
       ],
     }));
 
@@ -133,18 +133,18 @@ function BlockBody({ block }: { block: DashboardBlock }) {
   if (block.type === "pipeline-resumen") {
     if (!state.modules.pipeline) return <p className="text-sm text-muted-foreground">Pipeline desactivado.</p>;
     const hasAmount = Boolean(amountField(state.dealFields));
-    const total = sumDeals(state.dealFields, state.deals);
+    const total = sumDeals(state.dealFields, activeDeals(state));
     return (
       <div className="space-y-2">
         {state.stages.map((st) => {
-          const deals = state.deals.filter((d) => d.stageId === st.id);
+          const deals = activeDeals(state).filter((d) => d.stageId === st.id);
           const val = sumDeals(state.dealFields, deals);
           const pct = hasAmount
             ? total
               ? (val / total) * 100
               : 0
-            : state.deals.length
-              ? (deals.length / state.deals.length) * 100
+            : activeDeals(state).length
+              ? (deals.length / activeDeals(state).length) * 100
               : 0;
           return (
             <div key={st.id}>
@@ -227,7 +227,7 @@ function BlockBody({ block }: { block: DashboardBlock }) {
         at: c.createdAt,
         text: `Contacto añadido: ${recordTitle(state.contactFields, c.values, "Sin nombre")}`,
       })),
-      ...state.deals.map((d) => ({
+      ...activeDeals(state).map((d) => ({
         at: d.createdAt,
         text: `Oportunidad: ${recordTitle(state.dealFields, d.values)}`,
       })),
@@ -251,16 +251,16 @@ function BlockBody({ block }: { block: DashboardBlock }) {
   const wonStage = state.stages.find((s) => /ganado/i.test(s.name));
   const value =
     metric === "deals-ganados"
-      ? String(state.deals.filter((d) => d.stageId === wonStage?.id).length)
+      ? String(activeDeals(state).filter((d) => d.stageId === wonStage?.id).length)
       : metric === "valor-pipeline"
-        ? eur(sumDeals(state.dealFields, state.deals))
+        ? eur(sumDeals(state.dealFields, activeDeals(state)))
         : metric === "contactos"
           ? String(activeContacts(state).length)
           : String(state.tasks.filter((t) => !t.done).length);
 
   type Metric = "deals-ganados" | "valor-pipeline" | "contactos" | "tareas-pendientes";
   const metrics: { key: Metric; label: string }[] = [
-    { key: "deals-ganados", label: "Deals ganados" },
+    { key: "deals-ganados", label: "Oportunidades ganadas" },
     { key: "valor-pipeline", label: "Valor del pipeline" },
     { key: "contactos", label: "Contactos" },
     { key: "tareas-pendientes", label: "Tareas pendientes" },

@@ -39,7 +39,17 @@ export function phoneField(fields: FieldDef[]): FieldDef | undefined {
 
 /** Oportunidades vinculadas a un contacto por relación real (contactId). */
 export function contactDeals(state: CrmState, contactId: string): Deal[] {
-  return state.deals.filter((d) => d.contactId === contactId);
+  return state.deals.filter((d) => d.contactId === contactId && !d.deletedAt);
+}
+
+/** Oportunidades activas (fuera de la papelera). */
+export function activeDeals(state: CrmState): Deal[] {
+  return state.deals.filter((d) => !d.deletedAt);
+}
+
+/** Oportunidades en la papelera. */
+export function trashedDeals(state: CrmState): Deal[] {
+  return state.deals.filter((d) => d.deletedAt);
 }
 
 /** Contactos activos (fuera de la papelera). */
@@ -85,5 +95,5 @@ export function isProtectedField(f: FieldDef): boolean {
 /** Deals cuyo stageId ya no corresponde a ninguna etapa existente. */
 export function orphanDeals(state: CrmState): Deal[] {
   const ids = new Set(state.stages.map((s) => s.id));
-  return state.deals.filter((d) => !ids.has(d.stageId));
+  return state.deals.filter((d) => !ids.has(d.stageId) && !d.deletedAt);
 }

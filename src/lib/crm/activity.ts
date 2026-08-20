@@ -13,6 +13,8 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   "task.deleted": "Tarea eliminada",
   "note.deleted": "Nota eliminada",
   "deal.linked": "Oportunidad vinculada",
+  "deal.deleted": "Oportunidad enviada a la papelera",
+  "deal.restored": "Oportunidad restaurada",
   "deal.stage": "Cambio de etapa",
 };
 

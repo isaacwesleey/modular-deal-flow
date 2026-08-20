@@ -6,6 +6,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { FieldInput } from "./fields";
@@ -20,6 +31,7 @@ export function RecordDialog({
   recordId,
   onSave,
   onDelete,
+  deleteConfirm,
   extra,
 }: {
   open: boolean;
@@ -31,6 +43,8 @@ export function RecordDialog({
   recordId?: string;
   onSave: (v: FieldValues) => void;
   onDelete?: () => void;
+  /** Texto de confirmación previo al borrado (si se omite, borra directamente). */
+  deleteConfirm?: string;
   extra?: React.ReactNode;
 }) {
   const [draft, setDraft] = useState<FieldValues>(values);
@@ -63,7 +77,32 @@ export function RecordDialog({
           ))}
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
-          {onDelete ? (
+          {onDelete && deleteConfirm ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="text-destructive hover:text-destructive">
+                  Eliminar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar este registro?</AlertDialogTitle>
+                  <AlertDialogDescription>{deleteConfirm}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      onDelete();
+                      onOpenChange(false);
+                    }}
+                  >
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : onDelete ? (
             <Button
               variant="ghost"
               className="text-destructive hover:text-destructive"

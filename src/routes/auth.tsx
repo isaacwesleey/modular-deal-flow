@@ -23,15 +23,26 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+/**
+ * Accesos rápidos: se calculan sobre los usuarios que existen de verdad en el
+ * espacio de trabajo, así no se anuncian cuentas que se han eliminado ni un
+ * número de organizaciones que ya no es cierto.
+ */
 const QUICK_ACCESS = [
-  { id: "u-super", label: "Super admin", desc: "super@ventia.io — ve todas las organizaciones", icon: ShieldCheck },
-  { id: "u-admin", label: "Admin de organización", desc: "admin@miempresa.com — 2 organizaciones", icon: UserCog },
-  { id: "u-user", label: "Usuario", desc: "usuario@miempresa.com — sin Ajustes", icon: UserIcon },
+  { id: "u-super", label: "Super admin", hint: "ve todas las organizaciones", icon: ShieldCheck },
+  { id: "u-admin", label: "Admin de organización", hint: "configura campos y equipo", icon: UserCog },
+  { id: "u-user", label: "Usuario", hint: "operativa diaria, sin Ajustes", icon: UserIcon },
 ];
 
 function AuthPage() {
-  const { login, register, loginAs, user, tenant, isSuperAdmin, hydrated } = useCrm();
+  const { login, register, loginAs, user, tenant, isSuperAdmin, hydrated, root } = useCrm();
   const navigate = useNavigate();
+
+  const quickAccess = QUICK_ACCESS.flatMap((d) => {
+    const u = root.users.find((x) => x.id === d.id);
+    if (!u) return [];
+    return [{ ...d, desc: `${u.email} — ${d.hint}` }];
+  });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -122,12 +133,13 @@ function AuthPage() {
           </Tabs>
         </div>
 
+        {quickAccess.length > 0 && (
         <div className="rounded-xl border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Acceso rápido
           </p>
           <div className="mt-3 space-y-2">
-            {QUICK_ACCESS.map((d) => (
+            {quickAccess.map((d) => (
               <button
                 key={d.id}
                 type="button"
@@ -146,6 +158,7 @@ function AuthPage() {
             ))}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

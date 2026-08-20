@@ -182,7 +182,7 @@ export function defaultState(): CrmState {
       { id: "n3", text: "Nora pausa el proyecto hasta el próximo trimestre.", createdAt: daysAgo(8), linkType: "contact", linkId: "c5" },
     ],
     blocks: [
-      { id: "b1", type: "numero", config: { title: "Deals ganados", metric: "deals-ganados" } },
+      { id: "b1", type: "numero", config: { title: "Oportunidades ganadas", metric: "deals-ganados" } },
       { id: "b2", type: "pipeline-resumen" },
       { id: "b3", type: "tareas-hoy" },
       { id: "b4", type: "ultimos-contactos" },
@@ -219,8 +219,12 @@ export function makeTenant(name: string, state: CrmState): Tenant {
   return { id: uid(), name, createdAt: new Date().toISOString(), state };
 }
 
-/** Segunda organización precargada, con datos, campos, marca y módulos distintos. */
-function studioNorteState(): CrmState {
+/**
+ * Organización de EJEMPLO para enseñar el aislamiento multi organización.
+ * Ya no se precarga: el super admin la crea cuando la necesita desde el panel
+ * de plataforma (ver `createExampleTenant`).
+ */
+export function studioNorteState(): CrmState {
   const base = defaultState();
   return {
     ...base,
@@ -275,23 +279,64 @@ function studioNorteState(): CrmState {
   };
 }
 
+/** Identificadores estables de la organización precargada y sus usuarios. */
+export const MAIN_TENANT = "acme";
+export const EXAMPLE_TENANT = "norte";
+
+/**
+ * Arranque de la plantilla: UNA sola organización precargada y bien poblada,
+ * con su administrador y un usuario, más el super admin de la plataforma.
+ * La segunda organización (para demostrar el aislamiento) se crea a demanda
+ * desde el panel de plataforma.
+ */
 export function seedRootState(): RootState {
-  const t1: Tenant = { id: "acme", name: "Mi Empresa", createdAt: daysAgo(40), state: defaultState() };
-  const t2: Tenant = { id: "norte", name: "Studio Norte", createdAt: daysAgo(15), state: studioNorteState() };
+  const t1: Tenant = { id: MAIN_TENANT, name: "Mi Empresa", createdAt: daysAgo(40), state: defaultState() };
 
   const users: User[] = [
-    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: DEFAULT_PASSWORD, superAdmin: true, emailVerified: true, memberships: [] },
-    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: DEFAULT_PASSWORD, emailVerified: true, memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
+    { id: "u-super", name: "Super Admin", email: "super@ventia.io", password: DEFAULT_PASSWORD, superAdmin: true, emailVerified: true, memberships: [] },
+    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: DEFAULT_PASSWORD, emailVerified: true, memberships: [{ tenantId: t1.id, role: "admin" }] },
     { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: DEFAULT_PASSWORD, emailVerified: true, memberships: [{ tenantId: t1.id, role: "user" }] },
-    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: DEFAULT_PASSWORD, emailVerified: true, memberships: [{ tenantId: t2.id, role: "admin" }] },
   ];
 
   return {
-    tenants: { [t1.id]: t1, [t2.id]: t2 },
+    tenants: { [t1.id]: t1 },
     users,
     currentUserId: null,
     currentTenantId: null,
     tokens: [],
     notifications: [],
   };
+}
+
+/**
+ * Crea (una sola vez) la organización de ejemplo ya poblada y su administrador.
+ * Sirve para enseñar que los datos, campos, etapas y marca están aislados.
+ */
+export function createExampleTenant(r: RootState): RootState {
+  if (r.tenants[EXAMPLE_TENANT]) return r;
+  const tenant: Tenant = {
+    id: EXAMPLE_TENANT,
+    name: "Studio Norte",
+    createdAt: new Date().toISOString(),
+    state: studioNorteState(),
+  };
+  const hasUser = r.users.some((u) => u.id === "u-norte");
+  const users: User[] = hasUser
+    ? r.users.map((u) =>
+        u.id === "u-norte" && !u.memberships.some((m) => m.tenantId === EXAMPLE_TENANT)
+          ? { ...u, memberships: [...u.memberships, { tenantId: EXAMPLE_TENANT, role: "admin" as const }] }
+          : u,
+      )
+    : [
+        ...r.users,
+        {
+          id: "u-norte",
+          name: "Aitor Norte",
+          email: "admin@studionorte.com",
+          password: DEFAULT_PASSWORD,
+          emailVerified: true,
+          memberships: [{ tenantId: EXAMPLE_TENANT, role: "admin" as const }],
+        },
+      ];
+  return { ...r, tenants: { ...r.tenants, [EXAMPLE_TENANT]: tenant }, users };
 }

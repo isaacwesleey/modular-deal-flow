@@ -120,6 +120,10 @@ function migrateTenantState(s: CrmState): CrmState {
   const contacts = (s.contacts ?? []).filter(
     (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
   );
+  // Las oportunidades tienen la misma papelera con purga automática que los contactos.
+  const purgedDeals = (s.deals ?? []).filter(
+    (d) => !d.deletedAt || new Date(d.deletedAt).getTime() > cutoff,
+  );
   const titleFieldId = contactFields.find((f) => f.role === "title")?.id;
   /**
    * Migración: los deals antiguos no tenían relación real con el contacto.
@@ -133,7 +137,7 @@ function migrateTenantState(s: CrmState): CrmState {
       if (t && !byTitle.has(t)) byTitle.set(t, c.id);
     }
   }
-  const deals = (s.deals ?? []).map((d) => {
+  const deals = purgedDeals.map((d) => {
     if (d.contactId) return d;
     const match = Object.values(d.values).find(
       (v) => typeof v === "string" && byTitle.has(v.trim().toLowerCase()),
@@ -286,6 +290,16 @@ interface Ctx {
     opts?: { allowSelf?: boolean },
   ) => void;
   markNotificationRead: (id: string) => void;
+
+  /* ---- Plataforma y almacenamiento ---- */
+  /** Elimina una organización entera (solo super admin). */
+  deleteTenant: (tenantId: string) => void;
+  /** true si el navegador ha rechazado guardar por falta de espacio. */
+  storageError: boolean;
+  /** Descarga una copia de seguridad completa en JSON. */
+  exportBackup: () => void;
+  /** Vacía papeleras e historial antiguo para liberar espacio. */
+  freeUpSpace: () => void;
   markAllNotificationsRead: () => void;
 }
 
@@ -306,14 +320,56 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("ventia-consent", onConsent);
   }, []);
 
+  /**
+   * Persistencia. Si el navegador rechaza la escritura (cuota llena) NO se
+   * traga el error: se avisa al usuario para que exporte y libere espacio.
+   */
+  const [storageError, setStorageError] = useState(false);
   useEffect(() => {
     if (!hydrated) return;
     try {
       localStorage.setItem(ROOT_KEY, JSON.stringify(root));
-    } catch {
-      /* ignore */
+      setStorageError(false);
+    } catch (err) {
+      const quota =
+        err instanceof DOMException &&
+        (err.name === "QuotaExceededError" || err.name === "NS_ERROR_DOM_QUOTA_REACHED");
+      if (quota) setStorageError(true);
+      else console.error("No se ha podido guardar el espacio de trabajo", err);
     }
   }, [root, hydrated]);
+
+  /** Descarga una copia completa en JSON (respaldo antes de liberar espacio). */
+  const exportBackup = () => {
+    const blob = new Blob([JSON.stringify(root, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ventia-copia-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /** Vacía papeleras e historial antiguo de todas las organizaciones. */
+  const freeUpSpace = () => {
+    setInternal((r) => {
+      const tenants = Object.fromEntries(
+        Object.entries(r.tenants).map(([id, t]) => [
+          id,
+          {
+            ...t,
+            state: {
+              ...t.state,
+              contacts: t.state.contacts.filter((c) => !c.deletedAt),
+              deals: t.state.deals.filter((d) => !d.deletedAt),
+              events: (t.state.events ?? []).slice(0, 50),
+            },
+          },
+        ]),
+      );
+      return { ...r, tenants, notifications: (r.notifications ?? []).slice(0, 20) };
+    });
+  };
 
   const setRoot = (updater: (r: RootState) => RootState) => setInternal((r) => updater(r));
 
@@ -754,6 +810,29 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [root.notifications, root.currentUserId, root.currentTenantId],
   );
 
+  /**
+   * Elimina por completo una organización (solo super admin). Borra sus datos
+   * y las membresías de los usuarios que pertenecían a ella.
+   */
+  const deleteTenant = (tenantId: string) =>
+    setInternal((r) => {
+      if (!r.users.find((u) => u.id === r.currentUserId)?.superAdmin) return r;
+      const tenants = { ...r.tenants };
+      delete tenants[tenantId];
+      return {
+        ...r,
+        tenants,
+        users: r.users.map((u) => ({
+          ...u,
+          memberships: u.memberships.filter((m) => m.tenantId !== tenantId),
+        })),
+        tokens: (r.tokens ?? []).filter((t) => t.tenantId !== tenantId),
+        notifications: (r.notifications ?? []).filter((n) => n.tenantId !== tenantId),
+        currentTenantId: r.currentTenantId === tenantId ? null : r.currentTenantId,
+        supportMode: r.currentTenantId === tenantId ? false : Boolean(r.supportMode),
+      };
+    });
+
   const notify: Ctx["notify"] = (entries, opts) => {
     if (!entries.length) return;
     setRoot((r) => {
@@ -829,6 +908,10 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         notify,
         markNotificationRead,
         markAllNotificationsRead,
+        deleteTenant,
+        storageError,
+        exportBackup,
+        freeUpSpace,
       }}
     >
       {children}
