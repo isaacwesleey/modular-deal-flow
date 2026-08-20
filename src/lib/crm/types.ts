@@ -9,9 +9,10 @@ export type FieldType =
   | "multiselect"
   | "checkbox"
   | "currency"
-  | "url";
+  | "url"
+  | "user";
 
-export type FieldRole = "title" | "amount";
+export type FieldRole = "title" | "amount" | "status" | "owner";
 
 export interface FieldDef {
   id: string;
@@ -25,10 +26,70 @@ export interface FieldDef {
 
 export type FieldValues = Record<string, unknown>;
 
+/** Origen y atribución del lead (solo lectura, capturada al llegar el visitante). */
+export interface Attribution {
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  referrer?: string;
+  landingPage?: string;
+  device?: "escritorio" | "móvil" | "tablet";
+  firstSeenAt?: string;
+}
+
 export interface Contact {
   id: string;
   createdAt: string;
   values: FieldValues;
+  attribution?: Attribution;
+  /** Si está presente, el contacto está en la papelera. */
+  deletedAt?: string;
+}
+
+export type ActivityType =
+  | "contact.created"
+  | "contact.status"
+  | "contact.owner"
+  | "contact.field"
+  | "contact.deleted"
+  | "contact.restored"
+  | "note.added"
+  | "task.created"
+  | "task.done"
+  | "deal.linked"
+  | "deal.stage";
+
+/** Registro de auditoría por organización. */
+export interface ActivityEvent {
+  id: string;
+  at: string;
+  type: ActivityType;
+  /** Usuario que lo provocó. */
+  actorId?: string;
+  actorName: string;
+  /** Entidad afectada (normalmente el contacto). */
+  contactId?: string;
+  dealId?: string;
+  taskId?: string;
+  noteId?: string;
+  /** Etiqueta del campo o elemento tocado. */
+  label?: string;
+  from?: string;
+  to?: string;
+  text?: string;
+}
+
+/** Vista guardada del listado de contactos (por usuario y organización). */
+export interface SavedView {
+  id: string;
+  name: string;
+  userId: string;
+  query: string;
+  filters: { fieldId: string; value: string }[];
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 export interface Deal {
