@@ -228,7 +228,8 @@ function studioNorteState(): CrmState {
     contactFields: [
       { id: "nombre", label: "Cliente", type: "text", core: true, showInQuickView: true, role: "title" },
       { id: "email", label: "Email", type: "email", showInQuickView: true, role: "email" },
-      { id: "ciudad", label: "Ciudad", type: "text", showInQuickView: true, role: "company" },
+      { id: "empresa", label: "Empresa", type: "text", showInQuickView: true, role: "company" },
+      { id: "ciudad", label: "Ciudad", type: "text", showInQuickView: true },
       { id: "sector", label: "Sector", type: "select", options: ["Retail", "Hostelería", "Oficinas"], showInQuickView: true },
       { id: "fase", label: "Fase", type: "select", options: ["Solicitud", "Visitado", "Presupuestado", "Cliente"], showInQuickView: true, role: "status" },
       { id: "responsable", label: "Responsable", type: "user", showInQuickView: true, role: "owner" },
@@ -239,9 +240,9 @@ function studioNorteState(): CrmState {
       { id: "m2", label: "Metros cuadrados", type: "number", showInQuickView: true },
     ],
     contacts: [
-      { id: "sc1", createdAt: daysAgo(2), attribution: { ...ATTRIBUTIONS[0]!, firstSeenAt: daysAgo(3) }, values: { nombre: "Bar Aurora", email: "hola@baraurora.es", ciudad: "Bilbao", sector: "Hostelería", fase: "Solicitud", responsable: "u-norte" } },
-      { id: "sc2", createdAt: daysAgo(6), attribution: { ...ATTRIBUTIONS[2]!, firstSeenAt: daysAgo(7) }, values: { nombre: "Óptica Zubi", email: "info@opticazubi.com", ciudad: "Donostia", sector: "Retail", fase: "Presupuestado", responsable: "u-norte" } },
-      { id: "sc3", createdAt: daysAgo(11), attribution: { ...ATTRIBUTIONS[3]!, firstSeenAt: daysAgo(12) }, values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", ciudad: "Bilbao", sector: "Oficinas", fase: "Cliente", responsable: "u-admin" } },
+      { id: "sc1", createdAt: daysAgo(2), attribution: { ...ATTRIBUTIONS[0]!, firstSeenAt: daysAgo(3) }, values: { nombre: "Bar Aurora", email: "hola@baraurora.es", empresa: "Grupo Aurora", ciudad: "Bilbao", sector: "Hostelería", fase: "Solicitud", responsable: "u-norte" } },
+      { id: "sc2", createdAt: daysAgo(6), attribution: { ...ATTRIBUTIONS[2]!, firstSeenAt: daysAgo(7) }, values: { nombre: "Óptica Zubi", email: "info@opticazubi.com", empresa: "Óptica Zubi S.L.", ciudad: "Donostia", sector: "Retail", fase: "Presupuestado", responsable: "u-norte" } },
+      { id: "sc3", createdAt: daysAgo(11), attribution: { ...ATTRIBUTIONS[3]!, firstSeenAt: daysAgo(12) }, values: { nombre: "Coworking Ría", email: "gestion@coworkingria.com", empresa: "Ría Espacios", ciudad: "Bilbao", sector: "Oficinas", fase: "Cliente", responsable: "u-admin" } },
     ],
     deals: [
       { id: "sd1", createdAt: daysAgo(2), stageId: "n2", contactId: "sc1", values: { titulo: "Reforma Bar Aurora", presupuesto: 18500, m2: 120 } },
@@ -272,10 +273,10 @@ export function seedRootState(): RootState {
   const t2: Tenant = { id: "norte", name: "Studio Norte", createdAt: daysAgo(15), state: studioNorteState() };
 
   const users: User[] = [
-    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: DEFAULT_PASSWORD, superAdmin: true, memberships: [] },
-    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
-    { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t1.id, role: "user" }] },
-    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: DEFAULT_PASSWORD, memberships: [{ tenantId: t2.id, role: "admin" }] },
+    { id: "u-super", name: "Super Admin", email: "super@crmremix.io", password: DEFAULT_PASSWORD, superAdmin: true, emailVerified: true, memberships: [] },
+    { id: "u-admin", name: "Elena Admin", email: "admin@miempresa.com", password: DEFAULT_PASSWORD, emailVerified: true, memberships: [{ tenantId: t1.id, role: "admin" }, { tenantId: t2.id, role: "admin" }] },
+    { id: "u-user", name: "Iván Comercial", email: "usuario@miempresa.com", password: DEFAULT_PASSWORD, emailVerified: true, memberships: [{ tenantId: t1.id, role: "user" }] },
+    { id: "u-norte", name: "Aitor Norte", email: "admin@studionorte.com", password: DEFAULT_PASSWORD, emailVerified: true, memberships: [{ tenantId: t2.id, role: "admin" }] },
   ];
 
   return {
@@ -283,5 +284,7 @@ export function seedRootState(): RootState {
     users,
     currentUserId: null,
     currentTenantId: null,
+    tokens: [],
+    notifications: [],
   };
 }

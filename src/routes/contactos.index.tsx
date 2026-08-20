@@ -78,7 +78,7 @@ export const Route = createFileRoute("/contactos/")({
   component: ContactosPage,
 });
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 function ContactosPage() {
   const { state, setState, user, tenantUsers } = useCrm();
@@ -151,6 +151,7 @@ function ContactosPage() {
     return list;
   }, [base, q, activeFilters, sortBy, sortDir, fields]);
 
+  const PAGE_SIZE = user?.prefs?.pageSize ?? DEFAULT_PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pages - 1);
   const rows = filtered.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);

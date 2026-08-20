@@ -10,15 +10,20 @@ import { DEFAULT_PASSWORD, defaultState, emptyTenantState, seedRootState, uid } 
 import { brandForeground } from "./contrast";
 import { captureAttribution } from "./attribution";
 import { TRASH_DAYS } from "./roles";
+import { makeToken, tokenStatus, TOKEN_MESSAGES } from "./tokens";
 import type {
   ActivityEvent,
+  AppNotification,
+  AuthToken,
   CrmState,
   FieldDef,
   Membership,
+  NotificationKind,
   RootState,
   Tenant,
   TenantRole,
   User,
+  UserPrefs,
 } from "./types";
 
 const ROOT_KEY = "crm-remix-root-v2";
@@ -62,9 +67,38 @@ function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
   return list;
 }
 
+/**
+ * Migración puntual: en algunas organizaciones el rol `company` cayó sobre un
+ * campo que no era la empresa (p. ej. "Ciudad"). Se libera ese campo y se crea
+ * uno de empresa propio para que la cabecera de la ficha muestre lo correcto.
+ */
+function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
+  const wrong = fields.find(
+    (f) => f.role === "company" && !/empresa|compañ|company|negocio/i.test(f.label),
+  );
+  if (!wrong) return fields;
+  const cleaned: FieldDef[] = fields.map((f) => {
+    if (f.id !== wrong.id) return f;
+    const { role: _drop, ...rest } = f;
+    return rest;
+  });
+  const existing = cleaned.find((f) => /empresa|compañ|company/i.test(f.label));
+  if (existing) return cleaned.map((f) => (f.id === existing.id ? { ...f, role: "company" as const } : f));
+  const idx = cleaned.findIndex((f) => f.id === wrong.id);
+  const empresa: FieldDef = {
+    id: "empresa",
+    label: "Empresa",
+    type: "text",
+    showInQuickView: true,
+    role: "company",
+  };
+  if (cleaned.some((f) => f.id === "empresa")) return cleaned;
+  return [...cleaned.slice(0, idx), empresa, ...cleaned.slice(idx)];
+}
+
 function migrateTenantState(s: CrmState): CrmState {
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
-  const contactFields = ensureRoles(s.contactFields ?? [], false);
+  const contactFields = fixCompanyRole(ensureRoles(s.contactFields ?? [], false));
   const contacts = (s.contacts ?? []).filter(
     (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
   );
@@ -180,10 +214,41 @@ interface Ctx {
     name: string;
     email: string;
     password: string;
-  }) => { ok: boolean; error?: string };
+  }) => { ok: boolean; error?: string; token?: string };
   switchTenant: (tenantId: string) => void;
   exitSupport: () => void;
   enterSupport: (tenantId: string) => void;
+
+  /* ---- Cuenta: tokens simulados (ver aviso en tokens.ts) ---- */
+  tokens: AuthToken[];
+  requestPasswordReset: (email: string) => { ok: boolean; error?: string; token?: string };
+  resetPassword: (token: string, password: string) => { ok: boolean; error?: string };
+  requestVerification: (userId?: string) => { ok: boolean; error?: string; token?: string };
+  verifyEmail: (token: string) => { ok: boolean; error?: string };
+  createInvite: (input: { email: string; role: TenantRole }) => {
+    ok: boolean;
+    error?: string;
+    token?: string;
+  };
+  revokeInvite: (token: string) => void;
+  acceptInvite: (
+    token: string,
+    input: { name: string; password: string },
+  ) => { ok: boolean; error?: string };
+  pendingInvites: AuthToken[];
+  changePassword: (current: string, next: string) => { ok: boolean; error?: string };
+  updateProfile: (patch: Partial<Pick<User, "name" | "email">>) => { ok: boolean; error?: string };
+  updatePrefs: (patch: Partial<UserPrefs>) => void;
+
+  /* ---- Notificaciones ---- */
+  notifications: AppNotification[];
+  notify: (
+    entries: Array<
+      Omit<AppNotification, "id" | "at" | "tenantId" | "read"> & { tenantId?: string }
+    >,
+  ) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
 }
 
 const CrmContext = createContext<Ctx | null>(null);
@@ -309,12 +374,17 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     const b = state.branding;
     const el = document.documentElement;
-    el.classList.toggle("dark", b.theme === "dark");
+    const pref = user?.prefs?.theme ?? "auto";
+    const dark =
+      pref === "auto"
+        ? b.theme === "dark"
+        : pref === "dark";
+    el.classList.toggle("dark", dark);
     el.style.setProperty("--brand", b.brandHue);
     const fg = brandForeground(b.brandHue);
     el.style.setProperty("--primary-foreground", fg);
     el.style.setProperty("--sidebar-primary-foreground", fg);
-  }, [state.branding.theme, state.branding.brandHue, hydrated]);
+  }, [state.branding.theme, state.branding.brandHue, user?.prefs?.theme, hydrated]);
 
   const login: Ctx["login"] = (email, password) => {
     // ⚠️ Comparación de contraseña en texto plano: simulación, no usar en real.
@@ -373,8 +443,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     if (!name.trim()) return { ok: false, error: "Indica tu nombre." };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))
       return { ok: false, error: "El email no es válido." };
-    if (!password || password.length < 4)
-      return { ok: false, error: "La contraseña debe tener al menos 4 caracteres." };
+    if (!password || password.length < 6)
+      return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
     if (root.users.some((u) => u.email.toLowerCase() === mail))
       return { ok: false, error: "Ya existe un usuario con ese email." };
     const tenantId = uid();
@@ -390,17 +460,22 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       email: mail,
       // ⚠️ Contraseña sin hashear: simulación en localStorage.
       password,
+      emailVerified: false,
       memberships: [{ tenantId, role: "admin" }],
     };
+    // ⚠️ SIMULACIÓN: el token de verificación se guarda en el cliente y se
+    // muestra en pantalla porque no hay servidor de correo. Ver tokens.ts.
+    const vt = makeToken("verify", mail, { userId: admin.id });
     setRoot((r) => ({
       ...r,
       tenants: { ...r.tenants, [tenantId]: tenant },
       users: [...r.users, admin],
+      tokens: [...(r.tokens ?? []), vt],
       currentUserId: admin.id,
       currentTenantId: tenantId,
       supportMode: false,
     }));
-    return { ok: true };
+    return { ok: true, token: vt.token };
   };
 
   const switchTenant = (tenantId: string) =>
@@ -418,6 +493,239 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setRoot((r) => ({ ...r, currentTenantId: tenantId, supportMode: true }));
 
   const exitSupport = () => setRoot((r) => ({ ...r, currentTenantId: null, supportMode: false }));
+
+  /* ------------------------------------------------------------------ */
+  /* Cuenta: recuperación, verificación e invitaciones (SIMULADAS)       */
+  /* ------------------------------------------------------------------ */
+  const tokens = root.tokens ?? [];
+  const findToken = (token: string) => tokens.find((t) => t.token === token);
+  const useToken = (token: string) =>
+    setRoot((r) => ({
+      ...r,
+      tokens: (r.tokens ?? []).map((t) =>
+        t.token === token ? { ...t, usedAt: new Date().toISOString() } : t,
+      ),
+    }));
+
+  const requestPasswordReset: Ctx["requestPasswordReset"] = (email) => {
+    const mail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { ok: false, error: "El email no es válido." };
+    const found = root.users.find((u) => u.email.toLowerCase() === mail);
+    // No revelamos si el email existe (buena práctica también en real).
+    if (!found) return { ok: true };
+    const t = makeToken("reset", mail, { userId: found.id });
+    setRoot((r) => ({ ...r, tokens: [...(r.tokens ?? []), t] }));
+    return { ok: true, token: t.token };
+  };
+
+  const resetPassword: Ctx["resetPassword"] = (token, password) => {
+    const t = findToken(token);
+    const st = tokenStatus(t);
+    if (st !== "ok" || t?.kind !== "reset") return { ok: false, error: TOKEN_MESSAGES[st === "ok" ? "missing" : st] };
+    if (!password || password.length < 6)
+      return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+    setRoot((r) => ({
+      ...r,
+      users: r.users.map((u) => (u.id === t.userId ? { ...u, password } : u)),
+      tokens: (r.tokens ?? []).map((x) =>
+        x.token === token ? { ...x, usedAt: new Date().toISOString() } : x,
+      ),
+    }));
+    return { ok: true };
+  };
+
+  const requestVerification: Ctx["requestVerification"] = (userId) => {
+    const target = root.users.find((u) => u.id === (userId ?? root.currentUserId));
+    if (!target) return { ok: false, error: "No hay ninguna cuenta activa." };
+    if (target.emailVerified) return { ok: false, error: "Tu email ya está verificado." };
+    const t = makeToken("verify", target.email, { userId: target.id });
+    setRoot((r) => ({ ...r, tokens: [...(r.tokens ?? []), t] }));
+    return { ok: true, token: t.token };
+  };
+
+  const verifyEmail: Ctx["verifyEmail"] = (token) => {
+    const t = findToken(token);
+    const st = tokenStatus(t);
+    if (st !== "ok" || t?.kind !== "verify")
+      return { ok: false, error: TOKEN_MESSAGES[st === "ok" ? "missing" : st] };
+    setRoot((r) => ({
+      ...r,
+      users: r.users.map((u) => (u.id === t.userId ? { ...u, emailVerified: true } : u)),
+      tokens: (r.tokens ?? []).map((x) =>
+        x.token === token ? { ...x, usedAt: new Date().toISOString() } : x,
+      ),
+    }));
+    return { ok: true };
+  };
+
+  const pendingInvites = useMemo(
+    () =>
+      (root.tokens ?? []).filter(
+        (t) => t.kind === "invite" && t.tenantId === root.currentTenantId && tokenStatus(t) === "ok",
+      ),
+    [root.tokens, root.currentTenantId],
+  );
+
+  const createInvite: Ctx["createInvite"] = ({ email, role: inviteRole }) => {
+    const mail = email.trim().toLowerCase();
+    if (!tenant) return { ok: false, error: "No hay organización activa." };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { ok: false, error: "El email no es válido." };
+    const existing = root.users.find((u) => u.email.toLowerCase() === mail);
+    if (existing?.memberships.some((m) => m.tenantId === tenant.id))
+      return { ok: false, error: "Ese usuario ya pertenece a la organización." };
+    if (pendingInvites.some((t) => t.email === mail))
+      return { ok: false, error: "Ya hay una invitación pendiente para ese email." };
+    const t = makeToken("invite", mail, {
+      tenantId: tenant.id,
+      role: inviteRole,
+      invitedByName: user?.name ?? "Un administrador",
+    });
+    setRoot((r) => ({ ...r, tokens: [...(r.tokens ?? []), t] }));
+    return { ok: true, token: t.token };
+  };
+
+  const revokeInvite: Ctx["revokeInvite"] = (token) =>
+    setRoot((r) => ({
+      ...r,
+      tokens: (r.tokens ?? []).map((t) =>
+        t.token === token ? { ...t, revokedAt: new Date().toISOString() } : t,
+      ),
+    }));
+
+  const acceptInvite: Ctx["acceptInvite"] = (token, { name, password }) => {
+    const t = findToken(token);
+    const st = tokenStatus(t);
+    if (st !== "ok" || t?.kind !== "invite" || !t.tenantId)
+      return { ok: false, error: TOKEN_MESSAGES[st === "ok" ? "missing" : st] };
+    const tenantId = t.tenantId;
+    if (!root.tenants[tenantId]) return { ok: false, error: "La organización ya no existe." };
+    const existing = root.users.find((u) => u.email.toLowerCase() === t.email);
+    if (!existing) {
+      if (!name.trim()) return { ok: false, error: "Indica tu nombre." };
+      if (!password || password.length < 6)
+        return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+    }
+    const newUser: User | null = existing
+      ? null
+      : {
+          id: uid(),
+          name: name.trim(),
+          email: t.email,
+          // ⚠️ Contraseña sin hashear: simulación en localStorage.
+          password,
+          emailVerified: true,
+          memberships: [{ tenantId, role: t.role ?? "user" }],
+        };
+    setRoot((r) => ({
+      ...r,
+      users: existing
+        ? r.users.map((u) =>
+            u.id === existing.id
+              ? { ...u, memberships: [...u.memberships, { tenantId, role: t.role ?? "user" }] }
+              : u,
+          )
+        : [...r.users, newUser!],
+      tokens: (r.tokens ?? []).map((x) =>
+        x.token === token ? { ...x, usedAt: new Date().toISOString() } : x,
+      ),
+      currentUserId: existing?.id ?? newUser!.id,
+      currentTenantId: tenantId,
+      supportMode: false,
+    }));
+    return { ok: true };
+  };
+
+  const changePassword: Ctx["changePassword"] = (current, next) => {
+    if (!user) return { ok: false, error: "No hay sesión activa." };
+    // ⚠️ Comparación en texto plano: simulación.
+    if (user.password !== current) return { ok: false, error: "La contraseña actual no es correcta." };
+    if (!next || next.length < 6) return { ok: false, error: "La nueva contraseña debe tener al menos 6 caracteres." };
+    if (next === current) return { ok: false, error: "La nueva contraseña debe ser distinta de la actual." };
+    setRoot((r) => ({
+      ...r,
+      users: r.users.map((u) => (u.id === user.id ? { ...u, password: next } : u)),
+    }));
+    return { ok: true };
+  };
+
+  const updateProfile: Ctx["updateProfile"] = (patch) => {
+    if (!user) return { ok: false, error: "No hay sesión activa." };
+    const mail = patch.email?.trim().toLowerCase();
+    if (patch.name !== undefined && !patch.name.trim())
+      return { ok: false, error: "El nombre no puede estar vacío." };
+    if (mail !== undefined) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { ok: false, error: "El email no es válido." };
+      if (root.users.some((u) => u.id !== user.id && u.email.toLowerCase() === mail))
+        return { ok: false, error: "Ya existe otro usuario con ese email." };
+    }
+    const emailChanged = mail !== undefined && mail !== user.email.toLowerCase();
+    setRoot((r) => ({
+      ...r,
+      users: r.users.map((u) =>
+        u.id === user.id
+          ? {
+              ...u,
+              ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+              ...(mail !== undefined ? { email: mail } : {}),
+              ...(emailChanged ? { emailVerified: false } : {}),
+            }
+          : u,
+      ),
+      tokens: emailChanged
+        ? [...(r.tokens ?? []), makeToken("verify", mail!, { userId: user.id })]
+        : (r.tokens ?? []),
+    }));
+    return { ok: true };
+  };
+
+  const updatePrefs: Ctx["updatePrefs"] = (patch) =>
+    setRoot((r) => ({
+      ...r,
+      users: r.users.map((u) =>
+        u.id === r.currentUserId ? { ...u, prefs: { ...(u.prefs ?? {}), ...patch } } : u,
+      ),
+    }));
+
+  /* ---- Notificaciones ---- */
+  const notifications = useMemo(
+    () =>
+      (root.notifications ?? []).filter(
+        (n) => n.userId === root.currentUserId && n.tenantId === root.currentTenantId,
+      ),
+    [root.notifications, root.currentUserId, root.currentTenantId],
+  );
+
+  const notify: Ctx["notify"] = (entries) => {
+    if (!entries.length) return;
+    setRoot((r) => {
+      const now = new Date().toISOString();
+      const list: AppNotification[] = entries
+        .filter((e) => e.userId && e.userId !== r.currentUserId)
+        .map((e) => ({
+          ...e,
+          tenantId: e.tenantId ?? r.currentTenantId ?? "",
+          id: uid(),
+          at: now,
+          read: false,
+        }));
+      if (!list.length) return r;
+      return { ...r, notifications: [...list, ...(r.notifications ?? [])].slice(0, 200) };
+    });
+  };
+
+  const markNotificationRead: Ctx["markNotificationRead"] = (id) =>
+    setRoot((r) => ({
+      ...r,
+      notifications: (r.notifications ?? []).map((n) => (n.id === id ? { ...n, read: true } : n)),
+    }));
+
+  const markAllNotificationsRead = () =>
+    setRoot((r) => ({
+      ...r,
+      notifications: (r.notifications ?? []).map((n) =>
+        n.userId === r.currentUserId && n.tenantId === r.currentTenantId ? { ...n, read: true } : n,
+      ),
+    }));
 
   return (
     <CrmContext.Provider
@@ -444,6 +752,22 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         switchTenant,
         enterSupport,
         exitSupport,
+        tokens,
+        requestPasswordReset,
+        resetPassword,
+        requestVerification,
+        verifyEmail,
+        createInvite,
+        revokeInvite,
+        acceptInvite,
+        pendingInvites,
+        changePassword,
+        updateProfile,
+        updatePrefs,
+        notifications,
+        notify,
+        markNotificationRead,
+        markAllNotificationsRead,
       }}
     >
       {children}

@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { GripVertical, Plus, Trash2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
-import { BRAND_COLORS, DEFAULT_PASSWORD, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
+import { BRAND_COLORS, FIELD_TYPE_LABELS, uid } from "@/lib/crm/defaults";
+import { tokenLink } from "@/lib/crm/tokens";
 import { isProtectedField } from "@/lib/crm/roles";
 import { AccessDenied, PageHeader } from "@/components/crm/Layout";
 import { toast } from "sonner";
@@ -139,44 +140,23 @@ function AjustesPage() {
 }
 
 function UsersEditor() {
-  const { root, setRoot, tenant, user } = useCrm();
+  const { root, setRoot, tenant, user, createInvite, revokeInvite, pendingInvites } = useCrm();
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
   const [role, setRole] = useState<"admin" | "user">("user");
+  const [lastLink, setLastLink] = useState<{ email: string; link: string } | null>(null);
   if (!tenant) return null;
 
   const members = root.users.filter((u) => u.memberships.some((m) => m.tenantId === tenant.id));
 
   const invite = () => {
-    const mail = email.trim().toLowerCase();
-    if (!mail) return;
-    const existing = root.users.find((u) => u.email.toLowerCase() === mail);
-    if (existing?.memberships.some((m) => m.tenantId === tenant.id)) {
-      toast.error("Ese usuario ya pertenece a la organización.");
+    const res = createInvite({ email, role });
+    if (!res.ok) {
+      toast.error(res.error ?? "No se pudo enviar la invitación.");
       return;
     }
-    setRoot((r) => ({
-      ...r,
-      users: existing
-        ? r.users.map((u) =>
-            u.id === existing.id
-              ? { ...u, memberships: [...u.memberships, { tenantId: tenant.id, role }] }
-              : u,
-          )
-        : [
-            ...r.users,
-            {
-              id: uid(),
-              name: name.trim() || mail.split("@")[0]!,
-              email: mail,
-              password: DEFAULT_PASSWORD,
-              memberships: [{ tenantId: tenant.id, role }],
-            },
-          ],
-    }));
+    setLastLink({ email: email.trim().toLowerCase(), link: tokenLink("/invitacion", res.token!) });
     setEmail("");
-    setName("");
-    toast.success(`Usuario añadido (contraseña inicial: ${DEFAULT_PASSWORD})`);
+    toast.success("Invitación enviada");
   };
 
   const changeRole = (userId: string, newRole: "admin" | "user") =>
@@ -211,10 +191,6 @@ function UsersEditor() {
           <Label htmlFor="inv-email">Invitar por email</Label>
           <Input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="persona@empresa.com" />
         </div>
-        <div className="min-w-[160px] space-y-1.5">
-          <Label htmlFor="inv-name">Nombre</Label>
-          <Input id="inv-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Opcional" />
-        </div>
         <div className="w-[150px] space-y-1.5">
           <Label>Rol</Label>
           <Select value={role} onValueChange={(v) => setRole(v as "admin" | "user")}>
@@ -226,7 +202,49 @@ function UsersEditor() {
           </Select>
         </div>
         <Button onClick={invite}><Plus className="mr-1 h-4 w-4" /> Invitar</Button>
+        {lastLink && (
+          <div className="w-full space-y-1 rounded-lg border border-dashed bg-muted/40 p-3">
+            <p className="text-xs font-medium">Enlace enviado a {lastLink.email}</p>
+            <a href={lastLink.link} className="block break-all text-xs text-primary underline">
+              {lastLink.link}
+            </a>
+          </div>
+        )}
       </div>
+
+      {pendingInvites.length > 0 && (
+        <div className="divide-y rounded-xl border bg-card">
+          <p className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Invitaciones pendientes
+          </p>
+          {pendingInvites.map((t) => (
+            <div key={t.token} className="flex flex-wrap items-center gap-3 p-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{t.email}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t.role === "admin" ? "Admin" : "Usuario"} · caduca el{" "}
+                  {new Date(t.expiresAt).toLocaleDateString("es-ES")}
+                </p>
+              </div>
+              <div className="ml-auto flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(tokenLink("/invitacion", t.token));
+                    toast.success("Enlace copiado");
+                  }}
+                >
+                  Copiar enlace
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => revokeInvite(t.token)}>
+                  Anular
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="divide-y rounded-xl border bg-card">
         {members.map((m) => {
