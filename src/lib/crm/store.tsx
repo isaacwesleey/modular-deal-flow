@@ -1,8 +1,30 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { defaultState } from "./defaults";
-import type { CrmState } from "./types";
+import { brandForeground } from "./contrast";
+import type { CrmState, FieldDef } from "./types";
 
 const KEY = "crm-remix-state-v1";
+
+/** Asegura que existan los roles de campo en estados guardados antes de esta versión. */
+function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
+  let list = fields;
+  if (list.length && !list.some((f) => f.role === "title")) {
+    list = list.map((f, i) => (i === 0 ? { ...f, role: "title" as const } : f));
+  }
+  if (withAmount && !list.some((f) => f.role === "amount")) {
+    const candidate = list.find((f) => f.type === "currency" || f.type === "number");
+    if (candidate) list = list.map((f) => (f.id === candidate.id ? { ...f, role: "amount" as const } : f));
+  }
+  return list;
+}
+
+function migrate(s: CrmState): CrmState {
+  return {
+    ...s,
+    contactFields: ensureRoles(s.contactFields ?? [], false),
+    dealFields: ensureRoles(s.dealFields ?? [], true),
+  };
+}
 
 interface Ctx {
   state: CrmState;
@@ -20,7 +42,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) setInternal({ ...defaultState(), ...(JSON.parse(raw) as CrmState) });
+      if (raw) setInternal(migrate({ ...defaultState(), ...(JSON.parse(raw) as CrmState) }));
     } catch {
       /* ignore */
     }
@@ -41,6 +63,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle("dark", state.branding.theme === "dark");
     root.style.setProperty("--brand", state.branding.brandHue);
+    const fg = brandForeground(state.branding.brandHue);
+    root.style.setProperty("--primary-foreground", fg);
+    root.style.setProperty("--sidebar-primary-foreground", fg);
   }, [state.branding.theme, state.branding.brandHue, hydrated]);
 
   const setState = (updater: (s: CrmState) => CrmState) => setInternal((s) => updater(s));
