@@ -332,6 +332,23 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       const t = id ? r.tenants[id] : null;
       if (!id || !t) return r;
       const next = updater(t.state);
+      /**
+       * Permisos en la capa de datos, no solo en la interfaz: la configuración
+       * de la organización (marca, módulos, campos y etapas) solo la puede
+       * escribir un administrador (o el super admin en modo soporte). Da igual
+       * desde dónde venga la llamada: si no hay permiso, el cambio se descarta.
+       *
+       * ⚠️ En producción esto NO es una garantía: cualquiera puede editar el
+       * estado del navegador. La misma regla tiene que estar respaldada por
+       * permisos en el servidor (RLS / políticas de backend); la comprobación
+       * de cliente solo evita errores de la propia interfaz.
+       */
+      if (!canWriteSettings(r) && touchesSettings(t.state, next)) {
+        if (typeof console !== "undefined") {
+          console.warn("[crm] Cambio de configuración rechazado: se requiere rol de administrador.");
+        }
+        return r;
+      }
       // Fuente de verdad única: el nombre de la organización vive en
       // branding.companyName y se propaga a tenant.name (panel del super admin).
       const name = next.branding.companyName.trim() || t.name;
