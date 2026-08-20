@@ -11,6 +11,8 @@ export type FieldType =
   | "currency"
   | "url";
 
+export type FieldRole = "title" | "amount";
+
 export interface FieldDef {
   id: string;
   label: string;
@@ -18,6 +20,7 @@ export interface FieldDef {
   options?: string[];
   core?: boolean;
   showInQuickView?: boolean;
+  role?: FieldRole;
 }
 
 export type FieldValues = Record<string, unknown>;
