@@ -86,7 +86,7 @@ function AjustesPage() {
       />
 
       <Tabs defaultValue="modulos" className="space-y-6">
-        <TabsList>
+        <TabsList className="max-w-full overflow-x-auto">
           <TabsTrigger value="modulos">Módulos</TabsTrigger>
           <TabsTrigger value="campos">Campos</TabsTrigger>
           <TabsTrigger value="etapas">Etapas</TabsTrigger>
