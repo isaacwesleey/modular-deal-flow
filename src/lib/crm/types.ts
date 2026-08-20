@@ -214,6 +214,12 @@ export interface Branding {
 
 export interface CrmState {
   branding: Branding;
+  /**
+   * Versión del esquema de datos guardado. Las migraciones puntuales se
+   * aplican una sola vez comparando este número; después nunca vuelven a
+   * tocar la configuración que el usuario haya elegido a propósito.
+   */
+  schemaVersion?: number;
   modules: Record<ModuleKey, boolean>;
   contactFields: FieldDef[];
   dealFields: FieldDef[];

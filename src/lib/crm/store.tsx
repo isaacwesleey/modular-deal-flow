@@ -6,7 +6,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { DEFAULT_PASSWORD, defaultState, emptyTenantState, seedRootState, uid } from "./defaults";
+import {
+  DEFAULT_PASSWORD,
+  SCHEMA_VERSION,
+  defaultState,
+  emptyTenantState,
+  seedRootState,
+  uid,
+} from "./defaults";
 import { brandForeground } from "./contrast";
 import { captureAttribution } from "./attribution";
 import { TRASH_DAYS } from "./roles";
@@ -43,6 +50,9 @@ const LEGACY_KEY = "crm-remix-state-v1";
 /** Tope de eventos guardados por organización (evita reventar la cuota de localStorage). */
 export const MAX_EVENTS = 500;
 
+/** Reexport para el resto de la app: la fuente de verdad vive en defaults.ts. */
+export { SCHEMA_VERSION };
+
 /** Asegura que existan los roles de campo en estados guardados antes de esta versión. */
 function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
   let list = fields;
@@ -68,9 +78,15 @@ function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
 }
 
 /**
- * Migración puntual: en algunas organizaciones el rol `company` cayó sobre un
- * campo que no era la empresa (p. ej. "Ciudad"). Se libera ese campo y se crea
- * uno de empresa propio para que la cabecera de la ficha muestre lo correcto.
+ * Migración puntual (v1 → v2): en algunas organizaciones el rol `company` cayó
+ * sobre un campo que no era la empresa (p. ej. "Ciudad"). Se libera ese campo y
+ * se crea uno de empresa propio para que la cabecera de la ficha muestre lo
+ * correcto.
+ *
+ * ⚠️ Solo se ejecuta una vez, al subir de versión de esquema. A partir de ahí
+ * el rol `company` es decisión del usuario: puede llamar a ese campo "Cuenta",
+ * "Cliente" o "Razón social" y nadie se lo va a cambiar en el siguiente
+ * arranque.
  */
 function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
   const wrong = fields.find(
@@ -98,7 +114,9 @@ function fixCompanyRole(fields: FieldDef[]): FieldDef[] {
 
 function migrateTenantState(s: CrmState): CrmState {
   const cutoff = Date.now() - TRASH_DAYS * 86400000;
-  const contactFields = fixCompanyRole(ensureRoles(s.contactFields ?? [], false));
+  const version = s.schemaVersion ?? 1;
+  const withRoles = ensureRoles(s.contactFields ?? [], false);
+  const contactFields = version < 2 ? fixCompanyRole(withRoles) : withRoles;
   const contacts = (s.contacts ?? []).filter(
     (c) => !c.deletedAt || new Date(c.deletedAt).getTime() > cutoff,
   );
@@ -125,6 +143,7 @@ function migrateTenantState(s: CrmState): CrmState {
   return {
     ...defaultState(),
     ...s,
+    schemaVersion: SCHEMA_VERSION,
     contactFields,
     dealFields: ensureRoles(s.dealFields ?? [], true),
     events: (s.events ?? []).slice(0, MAX_EVENTS),
@@ -136,6 +155,24 @@ function migrateTenantState(s: CrmState): CrmState {
 }
 
 /** Migración: el estado v1 (un solo CRM) se convierte en el primer tenant. */
+/**
+ * Claves de CrmState que forman la CONFIGURACIÓN de la organización: solo un
+ * administrador puede escribirlas (ver comentario en `setState`).
+ */
+const SETTINGS_KEYS = ["branding", "modules", "contactFields", "dealFields", "stages"] as const;
+
+function touchesSettings(before: CrmState, after: CrmState): boolean {
+  return SETTINGS_KEYS.some((k) => before[k] !== after[k]);
+}
+
+/** ¿El usuario activo puede escribir la configuración de la organización? */
+function canWriteSettings(r: RootState): boolean {
+  const u = r.users.find((x) => x.id === r.currentUserId);
+  if (!u) return false;
+  if (u.superAdmin) return true;
+  return u.memberships.some((m) => m.tenantId === r.currentTenantId && m.role === "admin");
+}
+
 function loadRoot(): RootState {
   try {
     const raw = localStorage.getItem(ROOT_KEY);
@@ -246,6 +283,7 @@ interface Ctx {
     entries: Array<
       Omit<AppNotification, "id" | "at" | "tenantId" | "read"> & { tenantId?: string }
     >,
+    opts?: { allowSelf?: boolean },
   ) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
@@ -313,6 +351,23 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       const t = id ? r.tenants[id] : null;
       if (!id || !t) return r;
       const next = updater(t.state);
+      /**
+       * Permisos en la capa de datos, no solo en la interfaz: la configuración
+       * de la organización (marca, módulos, campos y etapas) solo la puede
+       * escribir un administrador (o el super admin en modo soporte). Da igual
+       * desde dónde venga la llamada: si no hay permiso, el cambio se descarta.
+       *
+       * ⚠️ En producción esto NO es una garantía: cualquiera puede editar el
+       * estado del navegador. La misma regla tiene que estar respaldada por
+       * permisos en el servidor (RLS / políticas de backend); la comprobación
+       * de cliente solo evita errores de la propia interfaz.
+       */
+      if (!canWriteSettings(r) && touchesSettings(t.state, next)) {
+        if (typeof console !== "undefined") {
+          console.warn("[crm] Cambio de configuración rechazado: se requiere rol de administrador.");
+        }
+        return r;
+      }
       // Fuente de verdad única: el nombre de la organización vive en
       // branding.companyName y se propaga a tenant.name (panel del super admin).
       const name = next.branding.companyName.trim() || t.name;
@@ -695,12 +750,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [root.notifications, root.currentUserId, root.currentTenantId],
   );
 
-  const notify: Ctx["notify"] = (entries) => {
+  const notify: Ctx["notify"] = (entries, opts) => {
     if (!entries.length) return;
     setRoot((r) => {
       const now = new Date().toISOString();
       const list: AppNotification[] = entries
-        .filter((e) => e.userId && e.userId !== r.currentUserId)
+        // Por defecto no te avisas a ti mismo; los recordatorios automáticos
+        // (tareas que vencen) sí necesitan llegarte aunque los dispares tú.
+        .filter((e) => e.userId && (opts?.allowSelf || e.userId !== r.currentUserId))
         .map((e) => ({
           ...e,
           tenantId: e.tenantId ?? r.currentTenantId ?? "",

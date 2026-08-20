@@ -164,9 +164,14 @@ export function useContacts() {
     }));
     logEvents([{ type: "note.added", contactId, noteId: id, text }]);
     // Menciones tipo @Nombre: avisan a la persona mencionada.
-    const mentioned = tenantUsers.filter((u) =>
-      new RegExp(`@${u.name.split(" ")[0]}\\b`, "i").test(text),
-    );
+    // El nombre se escapa antes de construir el patrón: un nombre con
+    // paréntesis o signos raros reventaría el RegExp y tumbaría el guardado.
+    const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const mentioned = tenantUsers.filter((u) => {
+      const first = u.name.trim().split(/\s+/)[0];
+      if (!first) return false;
+      return new RegExp(`@${escapeRe(first)}(?![\\p{L}\\p{N}_])`, "iu").test(text);
+    });
     notify(
       mentioned.map((u) => ({
         userId: u.id,

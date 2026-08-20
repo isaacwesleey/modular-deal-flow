@@ -2,6 +2,12 @@ import type { ActivityEvent, Attribution, CrmState, RootState, Tenant, User } fr
 
 export const DEFAULT_PASSWORD = "acceso1234";
 
+/**
+ * Versión del esquema de datos del tenant. Las migraciones puntuales se aplican
+ * una única vez comparando este número con el estado guardado.
+ */
+export const SCHEMA_VERSION = 2;
+
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const FIELD_TYPE_LABELS: Record<string, string> = {
@@ -137,6 +143,7 @@ export function defaultState(): CrmState {
   }));
 
   return {
+    schemaVersion: SCHEMA_VERSION,
     branding: {
       companyName: "Mi Empresa",
       logo: "◆",
