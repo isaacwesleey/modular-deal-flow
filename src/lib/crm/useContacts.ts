@@ -9,11 +9,31 @@ import type { Attribution, Contact, FieldValues } from "./types";
  * Cualquier cambio de lead debe pasar por aquí para que el registro sea real.
  */
 export function useContacts() {
-  const { state, setState, logEvents, root } = useCrm();
+  const { state, setState, logEvents, root, notify, tenantUsers } = useCrm();
   const fields = state.contactFields;
 
   const userName = (id: unknown) =>
     root.users.find((u) => u.id === String(id ?? ""))?.name ?? "Sin asignar";
+
+  const contactTitleOf = (id: string) => {
+    const c = state.contacts.find((x) => x.id === id);
+    const titleField = fields.find((f) => f.role === "title");
+    return String((titleField && c?.values[titleField.id]) ?? "un contacto");
+  };
+
+  /** Avisa al propietario de un lead cuando se le asigna. */
+  const notifyOwner = (contactId: string, userId: string) => {
+    if (!userId) return;
+    notify([
+      {
+        userId,
+        kind: "lead.assigned",
+        title: `Te han asignado ${contactTitleOf(contactId)}`,
+        body: "Ahora eres el propietario de este lead.",
+        contactId,
+      },
+    ]);
+  };
 
   /** Sustituye ids de usuario por nombres legibles en el historial. */
   const pretty = (fieldId: string | undefined, text: string | undefined) => {
@@ -36,6 +56,9 @@ export function useContacts() {
 
   const update = (id: string, values: FieldValues) => {
     const before = state.contacts.find((c) => c.id === id)?.values ?? {};
+    const of = ownerField(fields);
+    if (of && values[of.id] && values[of.id] !== before[of.id])
+      notifyOwner(id, String(values[of.id]));
     setState((s) => ({
       ...s,
       contacts: s.contacts.map((c) => (c.id === id ? { ...c, values } : c)),
@@ -99,6 +122,9 @@ export function useContacts() {
           to: userName(userId),
         })),
     );
+    ids
+      .filter((id) => before.get(id) !== userName(userId))
+      .forEach((id) => notifyOwner(id, userId));
   };
 
   /** Envía a la papelera (reversible). */
@@ -137,7 +163,48 @@ export function useContacts() {
       ],
     }));
     logEvents([{ type: "note.added", contactId, noteId: id, text }]);
+    // Menciones tipo @Nombre: avisan a la persona mencionada.
+    const mentioned = tenantUsers.filter((u) =>
+      new RegExp(`@${u.name.split(" ")[0]}\\b`, "i").test(text),
+    );
+    notify(
+      mentioned.map((u) => ({
+        userId: u.id,
+        kind: "note.mention" as const,
+        title: `${u.name.split(" ")[0]}, te han mencionado en ${contactTitleOf(contactId)}`,
+        body: text.slice(0, 120),
+        contactId,
+      })),
+    );
   };
 
-  return { create, update, setStatus, setOwner, remove, restore, purge, addNote, userName };
+  /** Aviso al propietario del lead cuando alguien le crea una tarea. */
+  const notifyTaskAssigned = (contactId: string, taskTitle: string, taskId?: string) => {
+    const of = ownerField(fields);
+    const owner = of ? String(state.contacts.find((c) => c.id === contactId)?.values[of.id] ?? "") : "";
+    if (!owner) return;
+    notify([
+      {
+        userId: owner,
+        kind: "task.assigned",
+        title: `Nueva tarea en ${contactTitleOf(contactId)}`,
+        body: taskTitle,
+        contactId,
+        ...(taskId ? { taskId } : {}),
+      },
+    ]);
+  };
+
+  return {
+    create,
+    update,
+    setStatus,
+    setOwner,
+    remove,
+    restore,
+    purge,
+    addNote,
+    userName,
+    notifyTaskAssigned,
+  };
 }
