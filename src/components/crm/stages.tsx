@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
+import { defaultPipelineId, pipelineStages } from "@/lib/crm/roles";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -35,6 +36,10 @@ export const STAGE_COLORS = [
 /**
  * Borrado de etapa con confirmación y reasignación de las oportunidades.
  * Se comparte entre Ajustes y el propio tablero Kanban.
+ *
+ * Reglas: las oportunidades solo se pueden mover a etapas del MISMO embudo
+ * (mezclarlas rompería el tablero) y nunca se puede borrar la última etapa
+ * de un embudo, porque dejaría el embudo sin sitio donde crear nada.
  */
 export function StageDeleteDialog({
   stage,
@@ -47,11 +52,15 @@ export function StageDeleteDialog({
 }) {
   const { state, setState } = useCrm();
   const [open, setOpen] = useState(false);
-  const others = state.stages.filter((s) => s.id !== stage.id);
+  const pipelineId = stage.pipelineId ?? defaultPipelineId(state);
+  const siblings = pipelineStages(state, pipelineId);
+  const others = siblings.filter((s) => s.id !== stage.id);
+  const isLast = others.length === 0;
   const count = state.deals.filter((d) => d.stageId === stage.id && !d.deletedAt).length;
   const [target, setTarget] = useState<string>(others[0]?.id ?? "__delete__");
 
   const confirm = () => {
+    if (isLast) return;
     setState((s) => ({
       ...s,
       stages: s.stages.filter((x) => x.id !== stage.id),
@@ -76,14 +85,18 @@ export function StageDeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>¿Borrar la etapa “{stage.name}”?</AlertDialogTitle>
           <AlertDialogDescription>
-            {count === 0
+            {isLast
+              ? "Es la única etapa de este embudo. Crea otra antes de borrarla o elimina el embudo entero."
+              : count === 0
               ? "Esta etapa no tiene oportunidades."
               : `Esta etapa tiene ${count} oportunidad${count === 1 ? "" : "es"}. Elige qué hacer con ellas.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {count > 0 && (
+        {count > 0 && !isLast && (
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Oportunidades</Label>
+            <Label className="text-xs text-muted-foreground">
+              Oportunidades (solo etapas de este embudo)
+            </Label>
             <Select value={target} onValueChange={setTarget}>
               <SelectTrigger>
                 <SelectValue />
@@ -100,8 +113,8 @@ export function StageDeleteDialog({
           </div>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={confirm}>Borrar etapa</AlertDialogAction>
+          <AlertDialogCancel>{isLast ? "Entendido" : "Cancelar"}</AlertDialogCancel>
+          {!isLast && <AlertDialogAction onClick={confirm}>Borrar etapa</AlertDialogAction>}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

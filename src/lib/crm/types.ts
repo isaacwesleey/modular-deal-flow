@@ -29,6 +29,16 @@ export interface FieldDef {
   core?: boolean;
   showInQuickView?: boolean;
   role?: FieldRole;
+  /** Validación configurable desde Ajustes › Campos. */
+  required?: boolean;
+  /**
+   * Mínimo y máximo. Según el tipo de campo significan:
+   * - número / importe: valor mínimo y máximo
+   * - texto / área / teléfono / email / url: longitud mínima y máxima
+   * - fecha: fecha ISO (aaaa-mm-dd) mínima y máxima
+   */
+  min?: number | string;
+  max?: number | string;
 }
 
 export type FieldValues = Record<string, unknown>;

@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { FieldInput } from "./fields";
+import { validateValues, hasErrors, type FieldErrors } from "@/lib/crm/validation";
 import type { FieldDef, FieldValues } from "@/lib/crm/types";
 
 export function RecordDialog({
@@ -51,14 +52,26 @@ export function RecordDialog({
   entity?: "contactFields" | "dealFields";
 }) {
   const [draft, setDraft] = useState<FieldValues>(values);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const valuesRef = useRef(values);
   valuesRef.current = values;
 
   // Solo se sincroniza al abrir el diálogo o al cambiar de registro,
   // nunca en cada render (values puede ser un objeto nuevo cada vez).
   useEffect(() => {
-    if (open) setDraft({ ...valuesRef.current });
+    if (open) {
+      setDraft({ ...valuesRef.current });
+      setErrors({});
+    }
   }, [open, recordId]);
+
+  const save = () => {
+    const found = validateValues(fields, draft);
+    setErrors(found);
+    if (hasErrors(found)) return;
+    onSave(draft);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,13 +83,23 @@ export function RecordDialog({
           {extra}
           {fields.map((f) => (
             <div key={f.id} className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">{f.label}</Label>
+              <Label className="text-xs font-medium text-muted-foreground">
+                {f.label}
+                {f.required && <span className="ml-0.5 text-destructive">*</span>}
+              </Label>
               <FieldInput
                 field={f}
                 value={draft[f.id]}
-                onChange={(v) => setDraft((d) => ({ ...d, [f.id]: v }))}
+                onChange={(v) => {
+                  setDraft((d) => ({ ...d, [f.id]: v }));
+                  setErrors((e) => {
+                    const { [f.id]: _drop, ...rest } = e;
+                    return rest;
+                  });
+                }}
                 {...(entity ? { entity } : {})}
               />
+              {errors[f.id] && <p className="text-xs text-destructive">{errors[f.id]}</p>}
             </div>
           ))}
         </div>
@@ -120,14 +143,7 @@ export function RecordDialog({
           ) : (
             <span />
           )}
-          <Button
-            onClick={() => {
-              onSave(draft);
-              onOpenChange(false);
-            }}
-          >
-            Guardar
-          </Button>
+          <Button onClick={save}>Guardar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

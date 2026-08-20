@@ -32,6 +32,7 @@ import {
   titleField,
 } from "@/lib/crm/roles";
 import { FieldInput, UserFieldInput } from "@/components/crm/fields";
+import { validateField } from "@/lib/crm/validation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -80,7 +81,7 @@ function LeadPage() {
   const [newTask, setNewTask] = useState("");
   const [dealOpen, setDealOpen] = useState(false);
   const [convertWarn, setConvertWarn] = useState(false);
-  const emptyValues = useMemo<FieldValues>(() => ({}), []);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Título prellenado con el nombre del lead al convertir.
   const prefilledDeal = useMemo<FieldValues>(() => {
     const dealTitle = titleField(state.dealFields);
@@ -126,8 +127,17 @@ function LeadPage() {
   const phoneValue = phone ? String(contact.values[phone.id] ?? "") : "";
   const companyValue = company ? String(contact.values[company.id] ?? "") : "";
 
-  const setValue = (fieldId: string, value: unknown) =>
+  /** Edición en línea: valida antes de guardar y muestra el error bajo el campo. */
+  const setValue = (fieldId: string, value: unknown) => {
+    const field = fields.find((f) => f.id === fieldId);
+    const error = field ? validateField(field, value) : null;
+    setFieldErrors((e) => {
+      const { [fieldId]: _drop, ...rest } = e;
+      return error ? { ...rest, [fieldId]: error } : rest;
+    });
+    if (error) return;
     update(contact.id, { ...contact.values, [fieldId]: value });
+  };
 
   const createTask = () => {
     if (!newTask.trim()) return;
@@ -468,12 +478,18 @@ function LeadPage() {
             <div className="space-y-3">
               {fields.map((f) => (
                 <div key={f.id} className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">{f.label}</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {f.label}
+                    {f.required && <span className="ml-0.5 text-destructive">*</span>}
+                  </p>
                   <FieldInput
                     field={f}
                     value={contact.values[f.id]}
                     onChange={(v) => setValue(f.id, v)}
                   />
+                  {fieldErrors[f.id] && (
+                    <p className="text-xs text-destructive">{fieldErrors[f.id]}</p>
+                  )}
                 </div>
               ))}
             </div>

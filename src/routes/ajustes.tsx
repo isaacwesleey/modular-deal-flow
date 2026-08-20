@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -497,6 +498,7 @@ function FieldEditor({
             {(f.type === "select" || f.type === "multiselect") && (
               <OptionsManager field={f} isDeal={isDeal} update={update} />
             )}
+            <FieldValidationEditor field={f} update={update} />
           </div>
         ))}
       </div>
@@ -528,6 +530,84 @@ function FieldEditor({
   );
 }
 
+
+/**
+ * Validación configurable del campo: obligatorio y mínimo/máximo.
+ * El significado de mín./máx. depende del tipo (valor, longitud o fecha) y se
+ * aplica igual en formularios, edición en línea e importación de CSV.
+ */
+function FieldValidationEditor({
+  field,
+  update,
+}: {
+  field: FieldDef;
+  update: (fn: (list: FieldDef[]) => FieldDef[]) => void;
+}) {
+  const numeric = field.type === "number" || field.type === "currency";
+  const isDate = field.type === "date";
+  const noRange =
+    field.type === "checkbox" ||
+    field.type === "user" ||
+    field.type === "select" ||
+    field.type === "multiselect";
+
+  const patch = (values: { required?: boolean; min?: number | string | undefined; max?: number | string | undefined }) =>
+    update((list) =>
+      list.map((x) => {
+        if (x.id !== field.id) return x;
+        const next = { ...x, ...values } as FieldDef & { min?: unknown; max?: unknown };
+        if (next.min === "" || next.min === undefined) delete next.min;
+        if (next.max === "" || next.max === undefined) delete next.max;
+        if (!next.required) delete next.required;
+        return next as FieldDef;
+      }),
+    );
+
+  const hint = numeric ? "valor" : isDate ? "fecha" : "caracteres";
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3 pl-6">
+      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <Checkbox
+          checked={Boolean(field.required)}
+          onCheckedChange={(c) => patch({ required: Boolean(c) })}
+        />
+        Obligatorio
+      </label>
+      {!noRange && (
+        <>
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-muted-foreground">Mín. {hint}</span>
+            <Input
+              type={isDate ? "date" : "number"}
+              value={field.min === undefined ? "" : String(field.min)}
+              onChange={(e) =>
+                patch({ min: isDate ? e.target.value : e.target.value === "" ? undefined : Number(e.target.value) })
+              }
+              className="h-7 w-32 text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-muted-foreground">Máx. {hint}</span>
+            <Input
+              type={isDate ? "date" : "number"}
+              value={field.max === undefined ? "" : String(field.max)}
+              onChange={(e) =>
+                patch({ max: isDate ? e.target.value : e.target.value === "" ? undefined : Number(e.target.value) })
+              }
+              className="h-7 w-32 text-xs"
+            />
+          </div>
+        </>
+      )}
+      {(field.type === "email" || field.type === "phone" || field.type === "url") && (
+        <span className="text-[11px] text-muted-foreground">
+          El formato se valida automáticamente.
+        </span>
+      )}
+    </div>
+  );
+}
 
 /**
  * Gestión de las opciones de un selector o campo de etiquetas: añadir,
@@ -909,6 +989,8 @@ function IntakeEditor() {
   const url = `${origin}/api/public/leads/${tenant?.id ?? ""}`;
 
   const send = () => {
+    // ⚠️ En producción el límite de tamaño, la firma y el control de frecuencia
+    // se aplican en el servidor; aquí solo se simulan en el navegador.
     const parsed = parseLeadPayload(payload);
     if (!parsed.ok) {
       setState((s) => logIntakeError(s, "Simulador", parsed.error, payload));
@@ -926,6 +1008,8 @@ function IntakeEditor() {
       return res.state;
     });
     toast.success(message || "Lead creado");
+    if (parsed.ignored.length)
+      toast.warning(`Campos ignorados: ${parsed.ignored.join(", ")}`);
   };
 
   const regenerate = () =>
@@ -965,7 +1049,8 @@ function IntakeEditor() {
             </div>
             <p className="text-xs text-muted-foreground">
               Se envía en la cabecera <code>X-Ventia-Key</code>. En producción el servidor valida
-              con ella la firma de la petición.
+              con ella la firma de la petición, limita el cuerpo a{" "}
+              {Math.round(INTAKE_MAX_BYTES / 1024)} KB y controla la frecuencia de llamadas.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -980,7 +1065,9 @@ function IntakeEditor() {
       <div className="rounded-xl border bg-card p-4">
         <h2 className="text-sm font-semibold">Simulador</h2>
         <p className="text-xs text-muted-foreground">
-          Pega un JSON y crea el lead de verdad, con su origen y su regla de conversión.
+          Pega un JSON y crea el lead de verdad, con su origen y su regla de conversión. Se aceptan
+          alias en castellano (<code>nombre</code>, <code>empresa</code>, <code>telefono</code>) y
+          utm sueltas (<code>utm_source</code>). Los campos desconocidos se ignoran y se avisan.
         </p>
         <textarea
           value={payload}
