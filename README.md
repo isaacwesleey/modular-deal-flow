@@ -141,8 +141,16 @@ npm run dev
 
 ## Rendimiento medido
 
-Todo el estado vive en `localStorage` bajo la clave `ventia-root-v1` (las claves
-antiguas de la plantilla se migran automáticamente al abrir la app).
+Todas las claves usan el prefijo `ventia-`:
+
+| Clave | Contenido |
+|---|---|
+| `ventia-root-v1` | Estado completo: organizaciones, usuarios, sesión, notificaciones |
+| `ventia-cookie-consent` | Decisión sobre cookies |
+| `ventia-origen` | Atribución de la visita (solo si se acepta marketing) |
+
+Las claves de versiones anteriores (`crm-remix-*`) se migran al abrir la app y
+se eliminan en cuanto la migración se guarda con éxito.
 
 Medición real en Chromium, escritorio 1280 px, con **2.000 contactos y 500
 oportunidades** en una organización (~700 KB de JSON):
