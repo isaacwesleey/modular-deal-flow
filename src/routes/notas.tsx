@@ -18,9 +18,9 @@ import {
 export const Route = createFileRoute("/notas")({
   head: () => ({
     meta: [
-      { title: "Notas — CRM Remix" },
+      { title: "Notas — Ventia" },
       { name: "description", content: "Timeline cronológico de notas asociadas a contactos y oportunidades." },
-      { property: "og:title", content: "Notas — CRM Remix" },
+      { property: "og:title", content: "Notas — Ventia" },
       { property: "og:description", content: "Timeline cronológico de notas asociadas a contactos y oportunidades." },
     ],
   }),

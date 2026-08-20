@@ -27,9 +27,9 @@ import type { Task, TaskKind } from "@/lib/crm/types";
 export const Route = createFileRoute("/tareas")({
   head: () => ({
     meta: [
-      { title: "Tareas — CRM Remix" },
+      { title: "Tareas — Ventia" },
       { name: "description", content: "Tareas y actividades con vista lista y calendario." },
-      { property: "og:title", content: "Tareas — CRM Remix" },
+      { property: "og:title", content: "Tareas — Ventia" },
       { property: "og:description", content: "Tareas y actividades con vista lista y calendario." },
     ],
   }),

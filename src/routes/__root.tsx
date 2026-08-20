@@ -82,15 +82,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CRM Remix — plantilla modular" },
+      { title: "Ventia — el CRM claro para equipos comerciales" },
       {
         name: "description",
-        content: "Plantilla de CRM modular y personalizable: contactos, pipeline, tareas y notas.",
+        content: "Ventia organiza tus contactos, tu pipeline y tus tareas en un CRM que se adapta a tu forma de vender.",
       },
-      { property: "og:title", content: "CRM Remix — plantilla modular" },
+      { property: "og:title", content: "Ventia — el CRM claro para equipos comerciales" },
       {
         property: "og:description",
-        content: "Plantilla de CRM modular y personalizable: contactos, pipeline, tareas y notas.",
+        content: "Ventia organiza tus contactos, tu pipeline y tus tareas en un CRM que se adapta a tu forma de vender.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -143,17 +143,22 @@ function AuthGate() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
 
-  const PUBLIC = ["/auth", "/recuperar", "/restablecer", "/verificar", "/invitacion"];
-  const isAuthRoute = PUBLIC.includes(pathname);
+  // Rutas de cuenta: visibles sin sesión, con el marco de acceso.
+  const ACCOUNT = ["/auth", "/recuperar", "/restablecer", "/verificar", "/invitacion"];
+  // Sitio público: landing, precios y legales. Accesibles con o sin sesión.
+  const isSiteRoute =
+    pathname === "/" || pathname === "/precios" || pathname.startsWith("/legal");
+  const isAuthRoute = ACCOUNT.includes(pathname) || isSiteRoute;
   const isAdminRoute = pathname === "/admin";
   const suspended = Boolean(tenant?.suspended) && !isSuperAdmin;
 
   useEffect(() => {
     if (!hydrated) return;
+    if (isSiteRoute) return;
     if (!user && !isAuthRoute) navigate({ to: "/auth", replace: true });
     else if (user && !tenant && !isAdminRoute && !isAuthRoute)
       navigate({ to: isSuperAdmin ? "/admin" : "/auth", replace: true });
-  }, [hydrated, user, tenant, isAuthRoute, isAdminRoute, isSuperAdmin, navigate]);
+  }, [hydrated, user, tenant, isAuthRoute, isSiteRoute, isAdminRoute, isSuperAdmin, navigate]);
 
   if (!hydrated) return null;
   if (isAuthRoute) return <Outlet />;

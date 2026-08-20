@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { VentiaMark } from "@/components/site/VentiaLogo";
 import type { ReactNode } from "react";
 
 /** Marco visual compartido por las pantallas de cuenta fuera de la app. */
@@ -17,11 +18,8 @@ export function AuthShell({
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md space-y-4">
         <div className="text-center">
-          <Link
-            to="/auth"
-            className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-xl text-primary-foreground"
-          >
-            ◆
+          <Link to="/" className="mx-auto flex w-fit items-center">
+            <VentiaMark className="h-11 w-11" />
           </Link>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}

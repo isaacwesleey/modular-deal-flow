@@ -8,14 +8,15 @@ import { PasswordStrength } from "@/components/crm/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VentiaMark } from "@/components/site/VentiaLogo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Entrar — CRM Remix" },
+      { title: "Entrar — Ventia" },
       { name: "description", content: "Accede a tu organización o crea una nueva en el CRM modular." },
-      { property: "og:title", content: "Entrar — CRM Remix" },
+      { property: "og:title", content: "Entrar — Ventia" },
       { property: "og:description", content: "Accede a tu organización o crea una nueva en el CRM modular." },
     ],
   }),
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 const QUICK_ACCESS = [
-  { id: "u-super", label: "Super admin", desc: "super@crmremix.io — ve todas las organizaciones", icon: ShieldCheck },
+  { id: "u-super", label: "Super admin", desc: "super@ventia.io — ve todas las organizaciones", icon: ShieldCheck },
   { id: "u-admin", label: "Admin de organización", desc: "admin@miempresa.com — 2 organizaciones", icon: UserCog },
   { id: "u-user", label: "Usuario", desc: "usuario@miempresa.com — sin Ajustes", icon: UserIcon },
 ];
@@ -42,17 +43,17 @@ function AuthPage() {
   useEffect(() => {
     if (!hydrated || !user) return;
     if (isSuperAdmin) navigate({ to: "/admin", replace: true });
-    else if (tenant) navigate({ to: "/", replace: true });
+    else if (tenant) navigate({ to: "/inicio", replace: true });
   }, [hydrated, user, tenant, isSuperAdmin, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md space-y-4">
         <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-xl text-primary-foreground">
-            ◆
-          </div>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight">CRM Remix</h1>
+          <Link to="/" className="mx-auto flex w-fit items-center gap-2">
+            <VentiaMark className="h-11 w-11" />
+          </Link>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">Ventia</h1>
           <p className="text-sm text-muted-foreground">CRM multi organización para equipos comerciales.</p>
         </div>
 

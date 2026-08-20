@@ -13,9 +13,9 @@ import type { Tenant } from "@/lib/crm/types";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Panel SaaS — CRM Remix" },
+      { title: "Panel SaaS — Ventia" },
       { name: "description", content: "Panel del super admin: organizaciones, usuarios y uso de la plataforma." },
-      { property: "og:title", content: "Panel SaaS — CRM Remix" },
+      { property: "og:title", content: "Panel SaaS — Ventia" },
       { property: "og:description", content: "Panel del super admin: organizaciones, usuarios y uso de la plataforma." },
     ],
   }),
@@ -124,7 +124,7 @@ function AdminPage() {
                       size="sm"
                       onClick={() => {
                         enterSupport(t.id);
-                        navigate({ to: "/" });
+                        navigate({ to: "/inicio" });
                       }}
                     >
                       <LifeBuoy className="mr-1 h-4 w-4" /> Entrar en soporte

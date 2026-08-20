@@ -10,9 +10,9 @@ export const Route = createFileRoute("/verificar")({
   validateSearch: z.object({ token: z.string().optional() }),
   head: () => ({
     meta: [
-      { title: "Verificar email — CRM Remix" },
+      { title: "Verificar email — Ventia" },
       { name: "description", content: "Confirma tu dirección de correo para activar todas las funciones de tu cuenta." },
-      { property: "og:title", content: "Verificar email — CRM Remix" },
+      { property: "og:title", content: "Verificar email — Ventia" },
       { property: "og:description", content: "Confirma tu dirección de correo para activar todas las funciones de tu cuenta." },
     ],
   }),
