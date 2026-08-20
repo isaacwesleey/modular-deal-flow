@@ -71,8 +71,8 @@ function Hero() {
   return (
     <section className="ventia-hero-bg relative overflow-hidden">
       <div className="ventia-grid-bg absolute inset-0 opacity-[0.35]" aria-hidden />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 lg:grid-cols-[1.05fr_1fr] lg:py-24">
-        <div>
+      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:py-24">
+        <div className="min-w-0">
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full border border-ventia-line bg-white/80 px-3 py-1 text-xs font-semibold text-ventia-deep">
               <Sparkles className="h-3.5 w-3.5" /> Nuevo: campos personalizados sin límite
@@ -111,7 +111,7 @@ function Hero() {
             </ul>
           </Reveal>
         </div>
-        <Reveal delay={160} className="relative">
+        <Reveal delay={160} className="relative min-w-0">
           <div className="space-y-4">
             <KanbanPreview />
             <div className="ventia-float sm:ml-10">
