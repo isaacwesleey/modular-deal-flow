@@ -6,7 +6,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { DEFAULT_PASSWORD, defaultState, emptyTenantState, seedRootState, uid } from "./defaults";
+import {
+  DEFAULT_PASSWORD,
+  SCHEMA_VERSION,
+  defaultState,
+  emptyTenantState,
+  seedRootState,
+  uid,
+} from "./defaults";
 import { brandForeground } from "./contrast";
 import { captureAttribution } from "./attribution";
 import { TRASH_DAYS } from "./roles";
@@ -43,12 +50,8 @@ const LEGACY_KEY = "crm-remix-state-v1";
 /** Tope de eventos guardados por organización (evita reventar la cuota de localStorage). */
 export const MAX_EVENTS = 500;
 
-/**
- * Versión actual del esquema de datos del tenant.
- * Cada migración puntual se aplica UNA sola vez: si el estado guardado ya
- * tiene esta versión, no se vuelve a tocar la configuración del usuario.
- */
-export const SCHEMA_VERSION = 2;
+/** Reexport para el resto de la app: la fuente de verdad vive en defaults.ts. */
+export { SCHEMA_VERSION };
 
 /** Asegura que existan los roles de campo en estados guardados antes de esta versión. */
 function ensureRoles(fields: FieldDef[], withAmount: boolean): FieldDef[] {
