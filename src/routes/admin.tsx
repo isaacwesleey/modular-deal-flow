@@ -73,7 +73,7 @@ function AdminPage() {
     }));
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-dvh bg-muted/30">
       <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background px-4">
         <Building2 className="h-5 w-5 text-primary" />
         <span className="font-semibold">Panel SaaS</span>

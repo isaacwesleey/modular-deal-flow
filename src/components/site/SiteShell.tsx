@@ -153,7 +153,7 @@ function SiteFooter() {
 /** Marco de todas las páginas públicas: cabecera, contenido, pie y cookies. */
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
-    <div className="ventia-site min-h-screen">
+    <div className="ventia-site min-h-dvh">
       <SiteHeader />
       <main>{children}</main>
       <SiteFooter />
