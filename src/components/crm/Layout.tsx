@@ -10,9 +10,20 @@ import {
   PanelLeft,
   Sun,
   Moon,
+  LogOut,
+  ShieldAlert,
+  Building2,
+  ShieldCheck,
 } from "lucide-react";
 import { useCrm } from "@/lib/crm/store";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function useNavItems() {
   const { state } = useCrm();
@@ -27,7 +38,20 @@ export function useNavItems() {
 }
 
 export function CrmLayout({ children }: { children: ReactNode }) {
-  const { state, setState, hydrated } = useCrm();
+  const {
+    state,
+    setState,
+    hydrated,
+    user,
+    tenant,
+    myTenants,
+    switchTenant,
+    logout,
+    canManageSettings,
+    isSuperAdmin,
+    supportMode,
+    exitSupport,
+  } = useCrm();
   const nav = useNavItems();
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
@@ -77,6 +101,16 @@ export function CrmLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="space-y-1 px-2 pb-4">
+          {isSuperAdmin && (
+            <Link
+              to="/admin"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>Panel SaaS</span>}
+            </Link>
+          )}
+          {canManageSettings && (
           <Link
             to="/ajustes"
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
@@ -88,6 +122,7 @@ export function CrmLayout({ children }: { children: ReactNode }) {
             <Settings className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Ajustes</span>}
           </Link>
+          )}
         </div>
       </aside>
 
@@ -97,15 +132,51 @@ export function CrmLayout({ children }: { children: ReactNode }) {
             <PanelLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm font-semibold md:hidden">{state.branding.companyName}</span>
+          {myTenants.length > 1 && tenant && (
+            <Select value={tenant.id} onValueChange={switchTenant}>
+              <SelectTrigger className="h-9 w-[200px]" aria-label="Cambiar de organización">
+                <Building2 className="mr-1 h-4 w-4 shrink-0 opacity-70" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {myTenants.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="ml-auto flex items-center gap-2">
+            {user && (
+              <span className="hidden text-right text-xs leading-tight sm:block">
+                <span className="block font-medium">{user.name}</span>
+                <span className="block text-muted-foreground">{user.email}</span>
+              </span>
+            )}
             <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Cambiar tema">
               {state.branding.theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={logout} aria-label="Cerrar sesión">
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </header>
 
+        {supportMode && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm">
+            <ShieldAlert className="h-4 w-4" />
+            <span>
+              Modo soporte: estás dentro de <strong>{tenant?.name}</strong> como super admin.
+            </span>
+            <Button size="sm" variant="outline" className="ml-auto" onClick={exitSupport}>
+              Salir del modo soporte
+            </Button>
+          </div>
+        )}
+
         <nav className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden">
-          {[...nav, { to: "/ajustes", label: "Ajustes", icon: Settings }].map((item) => (
+          {[...nav, ...(canManageSettings ? [{ to: "/ajustes", label: "Ajustes", icon: Settings }] : [])].map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -154,6 +225,19 @@ export function ModuleOff({ name }: { name: string }) {
       </p>
       <Button asChild className="mt-4">
         <Link to="/ajustes">Ir a Ajustes</Link>
+      </Button>
+    </div>
+  );
+}
+export function AccessDenied({ message }: { message?: string }) {
+  return (
+    <div className="mx-auto max-w-md rounded-xl border border-dashed p-10 text-center">
+      <h2 className="text-lg font-semibold">Acceso denegado</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {message ?? "No tienes permisos para ver esta sección. Habla con el administrador de tu organización."}
+      </p>
+      <Button asChild className="mt-4">
+        <Link to="/">Volver al inicio</Link>
       </Button>
     </div>
   );

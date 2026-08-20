@@ -98,3 +98,39 @@ export interface CrmState {
   notes: Note[];
   blocks: DashboardBlock[];
 }
+
+/** Estado de una organización (tenant). Es lo que antes era el estado global. */
+export type TenantState = CrmState;
+
+export type TenantRole = "admin" | "user";
+
+export interface Membership {
+  tenantId: string;
+  role: TenantRole;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  superAdmin?: boolean;
+  memberships: Membership[];
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  createdAt: string;
+  suspended?: boolean;
+  state: TenantState;
+}
+
+export interface RootState {
+  tenants: Record<string, Tenant>;
+  users: User[];
+  currentUserId: string | null;
+  currentTenantId: string | null;
+  /** El super admin ha entrado a un tenant para dar soporte. */
+  supportMode?: boolean;
+}

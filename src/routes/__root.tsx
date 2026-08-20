@@ -6,12 +6,14 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
+  useNavigate,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { CrmProvider } from "../lib/crm/store";
+import { CrmProvider, useCrm } from "../lib/crm/store";
 import { CrmLayout } from "../components/crm/Layout";
 import { Toaster } from "../components/ui/sonner";
 
@@ -128,12 +130,39 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <CrmProvider>
-        <CrmLayout>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </CrmLayout>
+        <AuthGate />
         <Toaster />
       </CrmProvider>
     </QueryClientProvider>
+  );
+}
+
+/** Rutas protegidas: sin sesión, todo redirige al login. */
+function AuthGate() {
+  const { hydrated, user, tenant, isSuperAdmin } = useCrm();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+
+  const isAuthRoute = pathname === "/auth";
+  const isAdminRoute = pathname === "/admin";
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!user && !isAuthRoute) navigate({ to: "/auth", replace: true });
+    else if (user && !tenant && !isAdminRoute && !isAuthRoute)
+      navigate({ to: isSuperAdmin ? "/admin" : "/auth", replace: true });
+  }, [hydrated, user, tenant, isAuthRoute, isAdminRoute, isSuperAdmin, navigate]);
+
+  if (!hydrated) return null;
+  if (isAuthRoute) return <Outlet />;
+  if (!user) return null;
+  if (isAdminRoute) return <Outlet />;
+  if (!tenant) return null;
+
+  return (
+    <CrmLayout>
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
+    </CrmLayout>
   );
 }
