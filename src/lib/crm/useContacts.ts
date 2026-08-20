@@ -58,7 +58,7 @@ export function useContacts() {
         source,
         ...(attribution ? { attribution } : {}),
       },
-      { actorName: user?.name ?? source },
+      { actorName: user?.name ?? source, logIntake: true },
     );
     setState(() => res.state);
     if (res.dealId) toast.success("Oportunidad creada por la regla automática");
@@ -82,7 +82,7 @@ export function useContacts() {
       const res = applyLeadIntake(
         next,
         { name: recordTitle(fields, values, "Sin nombre"), values, source },
-        { actorName: user?.name ?? source },
+        { actorName: user?.name ?? source, logIntake: true },
       );
       next = res.state;
       if (res.dealId) deals += 1;

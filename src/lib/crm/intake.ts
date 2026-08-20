@@ -152,6 +152,14 @@ export function parseLeadPayload(
     firstSeenAt: new Date().toISOString(),
   };
 
+  // Leemos todos los campos ANTES de calcular los ignorados: `used` se llena
+  // dentro de pickAlias, así que cualquier lectura posterior daría un falso
+  // positivo de "campo ignorado".
+  const company = get("company");
+  const phone = get("phone");
+  const message = get("message");
+  const status = get("status");
+  const source = get("source");
   const ignored = Object.keys(data).filter((k) => !used.has(k));
   return {
     ok: true,
@@ -159,11 +167,11 @@ export function parseLeadPayload(
     input: {
       name,
       ...(email ? { email } : {}),
-      ...(get("company") ? { company: get("company")! } : {}),
-      ...(get("phone") ? { phone: get("phone")! } : {}),
-      ...(get("message") ? { message: get("message")! } : {}),
-      ...(get("status") ? { status: get("status")! } : {}),
-      source: get("source") ?? "Webhook",
+      ...(company ? { company } : {}),
+      ...(phone ? { phone } : {}),
+      ...(message ? { message } : {}),
+      ...(status ? { status } : {}),
+      source: source ?? "Webhook",
       attribution,
     },
   };
